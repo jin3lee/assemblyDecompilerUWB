@@ -1,0 +1,50 @@
+00001000 Starting Address
+Assembler used: EASy68K Editor/Assembler v5.15.02
+Created On: 11/23/2014 8:28:22 PM
+
+00000000                             1  *-----------------------------------------------------------
+00000000                             2  * Title      :  Hello World
+00000000                             3  * Written by :  Joseph Lee
+00000000                             4  * Date       :  11/23/2014
+00000000                             5  * Description:  Prints Hello World
+00000000                             6  *-----------------------------------------------------------
+00001000                             7  START   ORG     $1000
+00001000  =0000000D                  8  CR      EQU     $0D
+00001000  =0000000A                  9  LF      EQU     $0A
+00001000                            10  
+00001000                            11  *------------CODE FOR OUTPUT---------------
+00001000  43F9 00001024             12  LOOP    LEA     MESSAGE, A1             *LOADS EFFECTIVE ADDRESS "MESSAGE" INTO ADDRESS REGISTER A1
+00001006  103C 000E                 13          MOVE.B  #14,D0                  *MOVES 14 INTO DATA REGISTER D0
+0000100A  4E4F                      14          TRAP    #15                     *ACTIVATES TRAP OF UP TO 15 TRAP CODE
+0000100C                            15  
+0000100C                            16  *------------CODE FOR INPUT---------------
+0000100C  103C 0004                 17          MOVE.B  #4,D0                   *TRAP TASK 4 
+00001010  4E4F                      18          TRAP    #15
+00001012                            19          
+00001012                            20  *------------COMPARING INPUT---------------
+00001012  B2BC 00000000             21          CMP.L   #0,D1
+00001018  6700 0004                 22          BEQ     DONE
+0000101C                            23          
+0000101C  60E2                      24          BRA     LOOP
+0000101E                            25  *------------CODE ENDING SIMULATOR---------
+0000101E  103C 0009                 26  DONE    MOVE.B  #9, D0
+00001022  4E4F                      27          TRAP    #15                     *HALT SIMULATOR
+00001024                            28          
+00001024                            29  
+00001024= 45 4E 54 45 52 20 ...     30  MESSAGE DC.B    'ENTER A NUMBER: ',0               *PLACES ASCII STRING IN MEMORY AT MESSAGE
+00001035                            31          
+00001035                            32          END     START
+
+No errors detected
+No warnings generated
+
+
+SYMBOL TABLE INFORMATION
+Symbol-name         Value
+-------------------------
+CR                  D
+DONE                101E
+LF                  A
+LOOP                1000
+MESSAGE             1024
+START               1000
