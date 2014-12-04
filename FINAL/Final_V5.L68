@@ -1,0 +1,535 @@
+00001000 Starting Address
+Assembler used: EASy68K Editor/Assembler v5.15.02
+Created On: 12/1/2014 2:35:54 AM
+
+00000000                             1  *-----------------------------------------------------------
+00000000                             2  * Title      :  68k Dissassembler
+00000000                             3  * Written by :  Joseph Lee and Sahith Nareddy
+00000000                             4  * Date       :
+00000000                             5  * Description:  
+00000000                             6  *-----------------------------------------------------------
+00000000                             7      
+00000000                             8  *----------------------------------------------------------*    
+00000000                             9  *                       *SYSTEM EQU*                       *
+00000000                            10  *----------------------------------------------------------* 
+00000000  =0000000D                 11  CR      EQU     $0D
+00000000  =0000000A                 12  LF      EQU     $0A
+00000000                            13                  *FEDCBA9876543210
+00000000  =00001040                 14  TEST    EQU     %0001000001000000
+00000000                            15  
+00000000                            16  *ASCII TO HEX*
+00000000                            17  *numbers in hex*
+00000000  =00000030                 18  zero2Hex    EQU     $30
+00000000  =00000031                 19  one2Hex     EQU     $31
+00000000  =00000032                 20  two2Hex     EQU     $32
+00000000  =00000033                 21  three2Hex   EQU     $33
+00000000  =00000034                 22  four2Hex    EQU     $34
+00000000  =00000035                 23  five2Hex    EQU     $35
+00000000  =00000036                 24  six2Hex     EQU     $36
+00000000  =00000037                 25  seven2Hex   EQU     $37
+00000000  =00000038                 26  eight2Hex   EQU     $38
+00000000  =00000039                 27  nine2Hex    EQU     $39
+00000000                            28  
+00000000                            29  *lowercase in hex*
+00000000  =00000064                 30  a2Hex       EQU     $64
+00000000  =00000065                 31  b2Hex       EQU     $65
+00000000  =00000066                 32  c2Hex       EQU     $66
+00000000  =00000067                 33  d2Hex       EQU     $67
+00000000  =00000068                 34  e2Hex       EQU     $68
+00000000  =00000069                 35  f2Hex       EQU     $69
+00000000                            36  
+00000000                            37  *uppercase in hex*
+00000000  =00000041                 38  AHex        EQU     $41
+00000000  =00000042                 39  BHex        EQU     $42
+00000000  =00000043                 40  CHex        EQU     $43
+00000000  =00000044                 41  DHex        EQU     $44
+00000000  =00000045                 42  EHex        EQU     $45
+00000000  =00000046                 43  FHex        EQU     $46
+00000000                            44  
+00000000                            45  *----------------------------------------------------------*
+00000000                            46  
+00000000                            47  
+00000000                            48     
+00001000                            49  START   ORG    $1000               ; first instruction of program
+00001000                            50  
+00001000                            51  
+00001000                            52  
+00001000                            53  PROGRAMSTART
+00001000                            54              * 1) Display welcome message
+00001000  4EB9 0000101C             55              JSR     SUB_INTRO               *(COMPLETED)*
+00001006                            56              
+00001006                            57  PROMPT_INPUT
+00001006  4EB9 0000102A             58              JSR     SUB_STARTADDRESS        *(COMPLETED)*
+0000100C  4EB9 0000107C             59              JSR     SUB_ENDADDRESS          *(COMPLETED)*
+00001012  4EB9 00001146             60              JSR     MAIN
+00001018                            61              
+00001018  6000 0288                 62              BRA     TERMINATE
+0000101C                            63  
+0000101C                            64  * --------------------------------------*
+0000101C                            65  *              BIG SUBROUTINES          *
+0000101C                            66  * --------------------------------------*
+0000101C                            67  *PRINTS WELCOME MESSAGE
+0000101C                            68  SUB_INTRO
+0000101C  43F9 000012A8             69              LEA     WELCOME,A1
+00001022  4EB9 00001292             70              JSR     PRINT_MESSAGE
+00001028  4E75                      71              RTS
+0000102A                            72              
+0000102A                            73  *ASKS USER FOR START ADDRESS AND VALIDATES
+0000102A                            74  SUB_STARTADDRESS
+0000102A                            75  *------------------REGISTERS-------------*
+0000102A                            76  *[D1] - HOLDS THE LENGTH OF THE STARTADD *
+0000102A                            77  *[A1] - POINTS TO START ADDRESS          *
+0000102A                            78  *----------------------------------------*
+0000102A                            79              * 2) Prompt user for start location
+0000102A  43F9 00001491             80              LEA     MSSG_PROMPT_START_INPUT,A1
+00001030  4EB9 00001292             81              JSR     PRINT_MESSAGE
+00001036                            82              
+00001036                            83              * 3) Store start location
+00001036  43F9 000015A3             84              LEA     STARTADD,A1
+0000103C  4EB9 0000129A             85              JSR     RECIEVE_INPUT
+00001042                            86              
+00001042                            87              * ERROR CHECK: check if input length less than 1
+00001042  0C01 0000                 88              CMPI.B  #0,D1
+00001046  6F00 01FC                 89              BLE     SUB_INPUT_AMOUNT_ERR
+0000104A                            90              
+0000104A                            91              
+0000104A                            92              * ERROR CHECK: check if input length greater than 8
+0000104A  0C01 0008                 93              CMPI.B  #8,D1
+0000104E  6E00 01F4                 94              BGT     SUB_INPUT_AMOUNT_ERR
+00001052                            95              
+00001052                            96              * ERROR CHECK: check if input characters are valid characters
+00001052                            97              *LEA     STARTADD,A1                 *LOADS THE START ADDRESS INTO A1 BEFORE CHECKING VALID CHARACTERS WITH SUBROUTINE
+00001052  4EB9 000010DE             98              JSR     CHECK_VALID_INPUT_IN_A1
+00001058  0C07 0001                 99              CMPI.B  #1, D7                  * Check for error
+0000105C  6700 01F6                100              BEQ     ERROR_CASE_ALPHA                 
+00001060  23C1 00001644            101              MOVE.L  D1, STARTING_ADDRESS_HEX           * Move the result to STARTING_ADDRESS_HEX [1]
+00001066                           102  
+00001066                           103              * Error Checking (Odd)
+00001066  43F9 00001644            104              LEA     STARTING_ADDRESS_HEX, A1           * Load 'S_ADDR_HX' for odd error
+0000106C  4EB9 00001274            105              JSR     IS_ODD                  * Check if the input address is odd
+00001072  0C07 0001                106              CMPI.B  #1, D7                  * Check for error
+00001076  6700 01DC                107              BEQ     ERROR_CASE_ALPHA
+0000107A                           108              
+0000107A                           109              * This subroutine is for if you encounter an error with input       
+0000107A  4E75                     110              RTS  
+0000107C                           111  
+0000107C                           112  *ASKS USER FOR END ADDRESS AND VALIDATES
+0000107C                           113  SUB_ENDADDRESS
+0000107C                           114              *!!!BUG REPORT!!!*
+0000107C                           115              *ENDING ADDRESS DOESN'T > STARTING ADDRESS IF CHARACTER '8' THROUGH 'F' 
+0000107C                           116              *IS THE FIRST CHARACTER IN ENDING ADDRESS AND LENGTH OF ADDRESS IS 8 CHARACTERS LONG*        
+0000107C                           117              ****REPORTBUGREPORTBUGREPORTBUGREPORTBUGREPORTBUGREPORTBUGREPORTBUGREPORTBUGREPORT***
+0000107C                           118              *-----------------------------------------------------------------------------------*
+0000107C                           119              
+0000107C                           120              * 4) Prompt user for end location
+0000107C  43F9 000014BC            121              LEA     MSSG_PROMPT_END_INPUT,A1
+00001082  4EB9 00001292            122              JSR     PRINT_MESSAGE
+00001088                           123              
+00001088                           124              * 5) Store end location
+00001088  43F9 000015F3            125              LEA     ENDADD,A1
+0000108E  4EB9 0000129A            126              JSR     RECIEVE_INPUT
+00001094                           127              
+00001094                           128              * Error Checking (length)
+00001094  0C01 0000                129              CMPI.B  #0, D1                  * Check if input length <= 0
+00001098  6F00 01CA                130              BLE     ERROR_CASE_BETA
+0000109C  0C01 0008                131              CMPI.B  #8, D1                  * Check if input length > 8
+000010A0  6E00 01C2                132              BGT     ERROR_CASE_BETA
+000010A4                           133              
+000010A4                           134              * Conversion & Storage
+000010A4  4EB9 000010DE            135              JSR     ASC_CONV_HEX                * Jump to ASCII2HEX
+000010AA  0C07 0001                136              CMPI.B  #1, D7                      * Check for error
+000010AE  6700 01A4                137              BEQ     ERROR_CASE_ALPHA
+000010B2  23C1 00001648            138              MOVE.L  D1, ENDING_ADDRESS_HEX           * Move the result to ENDING_ADDRESS_HEX
+000010B8                           139              
+000010B8                           140              * Error Checking (start < end)
+000010B8  2439 00001644            141              MOVE.L  STARTING_ADDRESS_HEX, D2        * Move the starting address to D2
+000010BE  B282                     142              CMP.L   D2, D1                          * Compare starting and ending address
+000010C0  6F00 01A2                143              BLE     ERROR_CASE_BETA                 * Go to ERROR_5 if ending < starting
+000010C4                           144              
+000010C4                           145              * Error Checking (Odd)
+000010C4  43F9 00001648            146              LEA     ENDING_ADDRESS_HEX, A1           * Move the ending address
+000010CA  4EB9 00001274            147              JSR     IS_ODD                  * Go to IS_ODD for odd address checking
+000010D0  0C07 0001                148              CMPI.B  #1, D7                  * Check for an error flag
+000010D4  6700 018E                149              BEQ     ERROR_CASE_BETA
+000010D8                           150              
+000010D8                           151              * Inputs are valid
+000010D8  2A79 00001644            152              MOVE.L  STARTING_ADDRESS_HEX, A5           * Store the valid input in A5
+000010DE                           153              
+000010DE                           154              
+000010DE                           155              
+000010DE                           156  *CHECKS IF CHARACTERS ARE VALID AS AN ADDRESS
+000010DE                           157  CHECK_VALID_INPUT_IN_A1
+000010DE                           158  *---------CONDITIONS-------*
+000010DE                           159  *PRE: A1 is leashed to address in memory that we are checking characters to validate
+000010DE                           160  *PRE: D1 contains the amount of characters to check for validity
+000010DE                           161  *---------REGISTERS--------*
+000010DE                           162  *[D3] - store bytes
+000010DE                           163  
+000010DE                           164  ASC_CONV_HEX  
+000010DE  4282                     165              CLR.L   D2                      * Clear D2 storage
+000010E0  4287                     166              CLR.L   D7                      * error flag
+000010E2  4281                     167              CLR.L   D1                      * dest
+000010E4                           168  
+000010E4                           169  
+000010E4                           170  
+000010E4                           171  * Here we check cases starting at highest ASCII values, which is lower case F
+000010E4                           172  * Then move down to lower ASCII values, which is numbers
+000010E4                           173  * If it's still invalid by the time we have passed numbers, thent they passed us
+000010E4                           174  * something out of range.
+000010E4                           175  ASC_CHECK_INVALID_CASES    
+000010E4  1419                     176              MOVE.B  (A1)+, D2               * Read A1 into D2
+000010E6  0C02 0000                177              CMPI.B  #0, D2                  * Check if the byte is null, which means end of string
+000010EA  6700 0058                178              BEQ     RETURN                  * If null exit out (we're done checking)
+000010EE  0C02 0066                179              CMPI.B  #102, D2                * ASCII val of f = 102
+000010F2  6E00 004C                180              BGT     ASC_ERROR               * Check if the value is greater than f's value, if it is, invalid
+000010F6  0C02 0061                181              CMPI.B  #97, D2                 * ASCII val of a = 97
+000010FA  6C00 0026                182              BGE     ASC_LOWER_CASE          * ASCII can be greater than/equal a, which means it is less than f also and in range
+000010FE  0C02 0046                183              CMPI.B  #70, D2                 * ASCII val of F = 70
+00001102  6E00 003C                184              BGT     ASC_ERROR               * just as with lower case f, check if greater than F
+00001106  0C02 0041                185              CMPI.B  #65, D2                 * Decimal ASCII value of A is 65
+0000110A  6C00 001E                186              BGE     ASC_UPPER_CASE                 * ASCII >= A (valid input)
+0000110E  0C02 0039                187              CMPI.B  #57, D2                 * Decimal value of 9 is 57
+00001112  6E00 002C                188              BGT     ASC_ERROR                 * ASCII > 9 (invalid input)
+00001116  0C02 0030                189              CMPI.B  #48, D2                 * Decimal ASCII value of 0 is 48
+0000111A  6C00 0016                190              BGE     ASC_NUMBER_CASE                 * ASCII >= 0 (valid input)
+0000111E  6000 0020                191              BRA     ASC_ERROR                 * Invalid input
+00001122                           192  
+00001122                           193  ASC_LOWER_CASE     
+00001122  0442 0057                194              SUBI    #87, D2                 * Convert ascii to hex
+00001126  6000 0012                195              BRA     ASC_SHIFT_LEFT          * asc shift left to shift the bits
+0000112A                           196              
+0000112A                           197  ASC_UPPER_CASE     
+0000112A  0442 0037                198              SUBI    #55, D2                 * ascii to Hex
+0000112E  6000 000A                199              BRA     ASC_SHIFT_LEFT          * shift bits
+00001132                           200              
+00001132                           201  ASC_NUMBER_CASE     
+00001132  0442 0030                202              SUBI    #48, D2                 * ascii to hex
+00001136  6000 0002                203              BRA     ASC_SHIFT_LEFT          * shift the bits
+0000113A                           204              
+0000113A                           205  ASC_SHIFT_LEFT     
+0000113A  E981                     206              ASL.L   #4, D1                      * dest Shift left by 4 bits
+0000113C  D202                     207              ADD.B   D2, D1                      * add input into D1
+0000113E  60A4                     208              BRA     ASC_CHECK_INVALID_CASES     *restarts
+00001140                           209  
+00001140  1E3C 0001                210  ASC_ERROR     MOVE.B  #1, D7                  * error indicated by d7           
+00001144  4E75                     211  RETURN      RTS     
+00001146                           212  
+00001146                           213  * --------------------------------------*
+00001146                           214  * --------------------------------------*
+00001146                           215  *                 MAIN                  *
+00001146                           216  * --------------------------------------* 
+00001146                           217  * --------------------------------------*
+00001146                           218  
+00001146                           219  *\/\/\/\/\/ ASSIGNED VARIABLES \/\/\/\/\/\
+00001146                           220  * A2:   contains the STARRT ADDRESS in hex format
+00001146                           221  * A3:   contains the END ADDRESS in hex format      [PLEASE DO NOT CLEAR]
+00001146                           222  * A4:   used to hold location of jump table
+00001146                           223  * D3:   used for storing contents of address we are trying to decode
+00001146                           224  * D4:   copy of process data
+00001146                           225  * D5:      
+00001146                           226  
+00001146                           227  MAIN
+00001146                           228              * clear all ah duh data registers and address registers
+00001146  4240                     229              CLR     D0
+00001148  4241                     230              CLR     D1
+0000114A  4242                     231              CLR     D2
+0000114C  4243                     232              CLR     D3
+0000114E  4244                     233              CLR     D4
+00001150  4245                     234              CLR     D5
+00001152  4246                     235              CLR     D6
+00001154  4247                     236              CLR     D7
+00001156                           237              
+00001156  21F8 1040 0000           238              MOVE.L  TEST,$00000000  *TEST
+0000115C                           239              
+0000115C  207C 00000000            240              MOVE.L  #0,A0
+00001162  227C 00000000            241              MOVE.L  #0,A1
+00001168  267C 00000000            242              MOVE.L  #0,A3
+0000116E  287C 00000000            243              MOVE.L  #0,A4
+00001174  2A7C 00000000            244              MOVE.L  #0,A5
+0000117A  2C7C 00000000            245              MOVE.L  #0,A6
+00001180                           246              
+00001180  2479 00001644            247              MOVE.L  STARTING_ADDRESS_HEX,A2 *load starting address, in hex format, into A1
+00001186  2679 00001648            248              MOVE.L  ENDING_ADDRESS_HEX,A3      *load ending address in hex format, into A1
+0000118C  4EB9 00001192            249              JSR     MAIN_HELPER
+00001192                           250              
+00001192                           251              
+00001192                           252  MAIN_HELPER
+00001192                           253              * note: don't clear A3!
+00001192  B7CA                     254              CMP.L   A2,A3
+00001194  6700 FE70                255              BEQ     PROMPT_INPUT    * if starting address has reached ending address, restart program
+00001198                           256              
+00001198  4243                     257              CLR     D3              * clear D3
+0000119A  361A                     258              MOVE.W  (A2)+,D3        * move START ADDRESS into register D3 and post-increment it
+0000119C  2803                     259              MOVE.L  D3,D4           * move copy of process data to D4
+0000119E  4245                     260              CLR     D5              * clear D5
+000011A0  1A3C 000C                261              MOVE.B  #12,D5          * shift bytes in D3 by 12 to right
+000011A4  EA6B                     262              LSR.W   D5,D3
+000011A6  C6FC 0006                263              MULU    #6,D3           * ------------------- offset is by 6
+000011AA  49F9 000011B4            264              LEA     JMPTABLE,A4     * load jump table into A4
+000011B0  4EB4 3000                265              JSR     0(A4,D3)        * jump into the jump table like Mario
+000011B4                           266              
+000011B4                           267              
+000011B4                           268              
+000011B4                           269  
+000011B4                           270  
+000011B4                           271  * --------------------------------------*
+000011B4                           272  *              JUMP TABLE               *
+000011B4                           273  * --------------------------------------*  
+000011B4                           274  
+000011B4  4EF9 00001214            275  JMPTABLE    JMP     OPCODE_0000  *ORI, EORI, CMPI, SUBI  [complete sans doublechecks]
+000011BA  4EF9 00001224            276              JMP     OPCODE_0001  *MOVE.B                 [complete sans doublechecks]
+000011C0  4EF9 00001234            277              JMP     OPCODE_0010
+000011C6  4EF9 00001234            278              JMP     OPCODE_0011
+000011CC  4EF9 00001234            279              JMP     OPCODE_0100
+000011D2  4EF9 00001234            280              JMP     OPCODE_0101
+000011D8  4EF9 00001234            281              JMP     OPCODE_0110
+000011DE  4EF9 00001234            282              JMP     OPCODE_0111
+000011E4  4EF9 00001234            283              JMP     OPCODE_1000
+000011EA  4EF9 00001234            284              JMP     OPCODE_1001
+000011F0  4EF9 00001234            285              JMP     OPCODE_1010
+000011F6  4EF9 00001234            286              JMP     OPCODE_1011
+000011FC  4EF9 00001234            287              JMP     OPCODE_1100
+00001202  4EF9 00001234            288              JMP     OPCODE_1101
+00001208  4EF9 00001234            289              JMP     OPCODE_1110           
+0000120E  4EF9 00001234            290              JMP     OPCODE_1111  *special reserve for garbage data (no proper opcodes have 1111)
+00001214                           291  
+00001214                           292  * --------------------------------------*
+00001214                           293  *            OPCODE TABLE               *
+00001214                           294  * --------------------------------------*
+00001214                           295  
+00001214                           296  * ORI, EORI, CMPI, SUBI
+00001214                           297  OPCODE_0000
+00001214  43F9 0000155D            298              LEA     MSSG_DEBUG_1,A1
+0000121A  4EB9 00001292            299              JSR     PRINT_MESSAGE
+00001220  6000 0080                300              BRA     TERMINATE
+00001224                           301             
+00001224                           302  
+00001224                           303  * MOVE.B
+00001224                           304  OPCODE_0001
+00001224  43F9 0000158B            305              LEA     MSSG_DEBUG_3,A1
+0000122A  4EB9 00001292            306              JSR     PRINT_MESSAGE
+00001230  6000 0070                307              BRA     TERMINATE
+00001234                           308  OPCODE_0010
+00001234                           309  OPCODE_0011
+00001234                           310  OPCODE_0100
+00001234                           311  OPCODE_0101
+00001234                           312  OPCODE_0110
+00001234                           313  OPCODE_0111
+00001234                           314  OPCODE_1000
+00001234                           315  OPCODE_1001
+00001234                           316  OPCODE_1010
+00001234                           317  OPCODE_1011
+00001234                           318  OPCODE_1100
+00001234                           319  OPCODE_1101
+00001234                           320  OPCODE_1110 
+00001234                           321  
+00001234                           322  OPCODE_1111
+00001234                           323  
+00001234                           324  TEST_DEBUG
+00001234  43F9 00001579            325              LEA     MSSG_DEBUG_2,A1
+0000123A  4EB9 00001292            326              JSR     PRINT_MESSAGE
+00001240  6000 0060                327              BRA     TERMINATE
+00001244                           328              
+00001244                           329      
+00001244                           330  
+00001244                           331         
+00001244                           332  * --------------------------------------*
+00001244                           333  *          ERROR SUBROUTINES            *
+00001244                           334  * --------------------------------------*  
+00001244                           335  
+00001244                           336  *Input less than 1 OR greater than 8
+00001244                           337  SUB_INPUT_AMOUNT_ERR
+00001244  43F9 0000150C            338              LEA     MSSG_ERROR_INPUT_AMOUNT,A1
+0000124A  4EB9 00001292            339              JSR     PRINT_MESSAGE
+00001250  6000 FDD8                340              BRA     SUB_STARTADDRESS
+00001254                           341              
+00001254                           342  ERROR_CASE_ALPHA
+00001254  43F9 0000164C            343              LEA     ERROR_1,A1
+0000125A  4EB9 00001292            344              JSR     PRINT_MESSAGE
+00001260  6000 FDC8                345              BRA     SUB_STARTADDRESS
+00001264                           346              
+00001264                           347  ERROR_CASE_BETA
+00001264  43F9 0000164C            348              LEA     ERROR_1,A1
+0000126A  4EB9 00001292            349              JSR     PRINT_MESSAGE
+00001270  6000 FE0A                350              BRA     SUB_ENDADDRESS
+00001274                           351              
+00001274  4281                     352  IS_ODD      CLR.L   D1                      * reset
+00001276  4287                     353              CLR.L   D7                      * clear D7
+00001278  2211                     354              MOVE.L  (A1),D1                 * store A1 to D1
+0000127A  82FC 0002                355              DIVU    #2, D1                  * divide contents of D1 by two
+0000127E  4841                     356              SWAP    D1                      * Exchange the quotient with the remainder
+00001280  0C01 0001                357              CMPI.B  #1, D1                  * err check
+00001284  6700 0006                358              BEQ     IS_ERROR_ODD
+00001288  6000 0006                359              BRA     RETURN_ODD
+0000128C                           360              
+0000128C  1E3C 0001                361  IS_ERROR_ODD  MOVE.B  #1, D7
+00001290  4E75                     362  RETURN_ODD    RTS
+00001292                           363  
+00001292                           364     
+00001292                           365  * --------------------------------------*
+00001292                           366  *          GENERIC SUBROUTINES          *
+00001292                           367  * --------------------------------------*
+00001292                           368  
+00001292                           369  * Prints a message
+00001292                           370  PRINT_MESSAGE
+00001292  103C 000E                371              MOVE.B  #14,D0
+00001296  4E4F                     372              TRAP    #15
+00001298  4E75                     373              RTS
+0000129A                           374  
+0000129A                           375  * Recieves input from the user
+0000129A                           376  RECIEVE_INPUT
+0000129A  103C 0002                377              MOVE.B  #2,D0
+0000129E  4E4F                     378              TRAP    #15
+000012A0  4E75                     379              RTS
+000012A2                           380              
+000012A2                           381     
+000012A2                           382              
+000012A2                           383              
+000012A2                           384  * --------------------------------------*
+000012A2                           385  *            TERMINATE(STOP SIM)        *
+000012A2                           386  * --------------------------------------*
+000012A2  103C 0009                387  TERMINATE   MOVE.B  #9,D0       
+000012A6  4E4F                     388              TRAP    #15
+000012A8                           389          
+000012A8                           390  * --------------------------------------*
+000012A8                           391  *                VARIABLES              *
+000012A8                           392  * --------------------------------------*
+000012A8                           393  
+000012A8                           394  * The welcome message we display.
+000012A8                           395  WELCOME
+000012A8= 20 5F 20 20 20 5F ...    396              DC.B ' _   _  _________________  ______ _   _______ _____  _       ___  ______ ',CR,LF
+000012F3= 7C 20 5C 20 7C 20 ...    397              DC.B '| \ | ||  ___| ___ \  _  \ | ___ \ | | | ___ \  __ \| |     / _ \ | ___ \',CR,LF
+0000133E= 7C 20 20 5C 7C 20 ...    398              DC.B '|  \| || |__ | |_/ / | | | | |_/ / | | | |_/ / |  \/| |    / /_\ \| |_/ /',CR,LF
+00001389= 7C 20 2E 20 60 20 ...    399              DC.B '| . ` ||  __||    /| | | | | ___ \ | | |    /| | __ | |    |  _  ||    / ',CR,LF
+000013D4= 7C 20 7C 5C 20 20 ...    400              DC.B '| |\  || |___| |\ \| |/ /  | |_/ / |_| | |\ \| |_\ \| |____| | | || |\ \ ',CR,LF
+0000141F= 5C 5F 7C 20 5C 5F ...    401              DC.B '\_| \_/\____/\_| \_|___/   \____/ \___/\_| \_|\____/\_____/\_| |_/\_| \_|',CR,LF
+0000146A= 42 79 20 4A 6F 73 ...    402              DC.B 'By Joseph Lee & Sahith Nareddy',CR,LF
+0000148A= 0D 0A                    403              DC.B '',CR,LF
+0000148C= 0D 0A 0D 0A 00           404              DC.B '',CR,LF,CR,LF,0
+00001491                           405  
+00001491                           406  MSSG_PROMPT_START_INPUT
+00001491= 50 6C 65 61 73 65 ...    407              DC.B    'Please enter starting memory location:',CR,LF,CR,LF,0
+000014BC                           408              
+000014BC                           409  MSSG_PROMPT_END_INPUT
+000014BC= 50 6C 65 61 73 65 ...    410              DC.B    'Please enter ending memory location:',CR,LF,CR,LF,0
+000014E5                           411              
+000014E5= 54 68 65 72 65 20 ...    412  MSSG_ERROR_INPUT    DC.B 'There is an error with your input.',CR,LF,CR,LF,0
+0000150C                           413  
+0000150C= 54 68 65 72 65 20 ...    414  MSSG_ERROR_INPUT_AMOUNT    DC.B 'There is an error with your input. There must be 1 through 8 hex characters.',CR,LF,CR,LF,0
+0000155D                           415  
+0000155D                           416  MSSG_DEBUG_1
+0000155D= 59 6F 75 20 68 69 ...    417              DC.B    'You hit the OPCODE_0000',CR,LF,CR,LF,0
+00001579                           418  
+00001579                           419  MSSG_DEBUG_2
+00001579= 59 6F 75 20 68 69 ...    420              DC.B    'You hit debug',CR,LF,CR,LF,0     
+0000158B                           421  
+0000158B                           422  MSSG_DEBUG_3
+0000158B= 59 6F 75 20 68 69 ...    423              DC.B    'You hit OPCODE_0001',CR,LF,CR,LF,0         
+000015A3                           424              
+000015A3                           425  
+000015A3                           426  STARTADD    
+000015A3                           427              DS.B    80
+000015F3                           428  ENDADD    
+000015F3                           429              DS.B    80
+00001643                           430  
+00001643                           431  
+00001644                           432  STARTING_ADDRESS_HEX   DS.L    1                       * allocate storage space for the starting address in hex
+00001648                           433  ENDING_ADDRESS_HEX   DS.L    1                       * allocate storage space for the ending address in hex
+0000164C                           434  
+0000164C                           435  
+0000164C= 45 72 72 6F 72 3A ...    436  ERROR_1    DC.B    'Error: Invalid Input Address',CR,LF,0
+0000166B= 45 72 72 6F 72 3A ...    437  ERROR_3    DC.B    'Error: Invalid Input Address (Odd)',CR,LF,0
+00001690= 45 72 72 6F 72 3A ...    438  ERROR_5    DC.B    'Error: Invalid Input Address (start > end)',CR,LF,0
+000016BD                           439              END    START        ; last line of source
+
+No errors detected
+No warnings generated
+
+
+SYMBOL TABLE INFORMATION
+Symbol-name         Value
+-------------------------
+A2HEX               64
+AHEX                41
+ASC_CHECK_INVALID_CASES  10E4
+ASC_CONV_HEX        10DE
+ASC_ERROR           1140
+ASC_LOWER_CASE      1122
+ASC_NUMBER_CASE     1132
+ASC_SHIFT_LEFT      113A
+ASC_UPPER_CASE      112A
+B2HEX               65
+BHEX                42
+C2HEX               66
+CHECK_VALID_INPUT_IN_A1  10DE
+CHEX                43
+CR                  D
+D2HEX               67
+DHEX                44
+E2HEX               68
+EHEX                45
+EIGHT2HEX           38
+ENDADD              15F3
+ENDING_ADDRESS_HEX  1648
+ERROR_1             164C
+ERROR_3             166B
+ERROR_5             1690
+ERROR_CASE_ALPHA    1254
+ERROR_CASE_BETA     1264
+F2HEX               69
+FHEX                46
+FIVE2HEX            35
+FOUR2HEX            34
+IS_ERROR_ODD        128C
+IS_ODD              1274
+JMPTABLE            11B4
+LF                  A
+MAIN                1146
+MAIN_HELPER         1192
+MSSG_DEBUG_1        155D
+MSSG_DEBUG_2        1579
+MSSG_DEBUG_3        158B
+MSSG_ERROR_INPUT    14E5
+MSSG_ERROR_INPUT_AMOUNT  150C
+MSSG_PROMPT_END_INPUT  14BC
+MSSG_PROMPT_START_INPUT  1491
+NINE2HEX            39
+ONE2HEX             31
+OPCODE_0000         1214
+OPCODE_0001         1224
+OPCODE_0010         1234
+OPCODE_0011         1234
+OPCODE_0100         1234
+OPCODE_0101         1234
+OPCODE_0110         1234
+OPCODE_0111         1234
+OPCODE_1000         1234
+OPCODE_1001         1234
+OPCODE_1010         1234
+OPCODE_1011         1234
+OPCODE_1100         1234
+OPCODE_1101         1234
+OPCODE_1110         1234
+OPCODE_1111         1234
+PRINT_MESSAGE       1292
+PROGRAMSTART        1000
+PROMPT_INPUT        1006
+RECIEVE_INPUT       129A
+RETURN              1144
+RETURN_ODD          1290
+SEVEN2HEX           37
+SIX2HEX             36
+START               1000
+STARTADD            15A3
+STARTING_ADDRESS_HEX  1644
+SUB_ENDADDRESS      107C
+SUB_INPUT_AMOUNT_ERR  1244
+SUB_INTRO           101C
+SUB_STARTADDRESS    102A
+TERMINATE           12A2
+TEST                1040
+TEST_DEBUG          1234
+THREE2HEX           33
+TWO2HEX             32
+WELCOME             12A8
+ZERO2HEX            30
