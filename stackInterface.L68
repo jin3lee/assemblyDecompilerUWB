@@ -1,0 +1,117 @@
+00001000 Starting Address
+Assembler used: EASy68K Editor/Assembler v5.15.02
+Created On: 12/6/2014 2:10:42 AM
+
+00000000                             1  *-----------------------------------------------------------
+00000000                             2  * Title      :
+00000000                             3  * Written by :
+00000000                             4  * Date       :
+00000000                             5  * Description:
+00000000                             6  *-----------------------------------------------------------
+00000000                             7      
+00000000                             8  *HOW TO USE STACK 
+00000000  =00007000                  9  SP        EQU       $7000
+00000000                            10      
+00001000                            11  START     ORG       $1000            ; first instruction of program
+00001000  33FC 0000 000010AA        12            MOVE.W    #0,COUNTER
+00001008  347C 7000                 13            MOVEA.W   #SP,A2           *A1 leashes to my stack pointer
+0000100C                            14            
+0000100C  363C 3344                 15            MOVE.W    #$3344,D3
+00001010  6100 0048                 16            BSR       PUSH_STACK
+00001014  363C 7700                 17            MOVE.W    #$7700,D3
+00001018  6100 0040                 18            BSR       PUSH_STACK
+0000101C  363C 2222                 19            MOVE.W    #$2222,D3
+00001020  6100 0038                 20            BSR       PUSH_STACK 
+00001024                            21            
+00001024  6100 005A                 22            BSR       CLEAR_STACK
+00001028  6100 0006                 23            BSR       PRINT_STACK
+0000102C  6000 0064                 24            BRA       END         
+00001030                            25              
+00001030                            26     
+00001030                            27  PRINT_STACK
+00001030  0C39 0000 000010AA        28            CMP.B     #0,COUNTER
+00001038  6700 0058                 29            BEQ       END             *CHECK IF LOOP IS FINISHED
+0000103C                            30            
+0000103C                            31  PRINT_STACK_HELPER
+0000103C  6100 0024                 32            BSR      POP_STACK          *PRINTS ADDRESS
+00001040  103C 000F                 33            MOVE.B   #15,D0             *PRINTS ACCORDING TO D2 BASE VALUE
+00001044  143C 0010                 34            MOVE.B   #16,D2             *PRINTS BASED 16 NUMBER
+00001048  4E4F                      35            TRAP        #15             *ACTIVATES PRINT
+0000104A                            36  
+0000104A  43F9 000010A4             37            LEA       MSG_SPACE,A1      * PRINTS " " AFTER EACH POP
+00001050  103C 000E                 38            MOVE.B    #14, D0  
+00001054  4E4F                      39            TRAP      #15
+00001056                            40  
+00001056  60D8                      41            BRA       PRINT_STACK
+00001058                            42            
+00001058  4E75                      43            RTS
+0000105A                            44            
+0000105A                            45  *PUSHES.W CONTENTS OF [D3] INTO STACK          
+0000105A                            46  PUSH_STACK
+0000105A  3503                      47              MOVE.W  D3,-(A2)
+0000105C  6100 0012                 48              BSR     INCREMENT
+00001060  4E75                      49              RTS
+00001062                            50  *POPS.W TOP OF STACK INTO [D1], SO ITS READY TO PRINT WITH TRAP 15
+00001062                            51  *         MOVE.W   (A2)+,D1           *PRINTS ADDRESS
+00001062                            52  *         MOVE.B   #15,D0             *PRINTS ACCORDING TO D2 BASE VALUE
+00001062                            53  *         MOVE.B   #16,D2             *PRINTS BASED 16 NUMBER
+00001062                            54  *         TRAP        #15             *ACTIVATES PRINT
+00001062                            55  POP_STACK
+00001062  BECA                      56              CMPA.W   A2,SP            *CHECKS IF THERE IS ANYTHING TO PUSH
+00001064  6700 0008                 57              BEQ     POP_RETURN        *IF NOTHING TO PUSH THAN JUST RETURN
+00001068  321A                      58              MOVE.W  (A2)+,D1 
+0000106A  6100 000C                 59              BSR     DECREMENT
+0000106E                            60  POP_RETURN
+0000106E  4E75                      61              RTS          
+00001070                            62  
+00001070                            63  INCREMENT
+00001070  5239 000010AA             64              ADD.B   #1, COUNTER
+00001076  4E75                      65              RTS           
+00001078                            66  DECREMENT
+00001078  5339 000010AA             67              SUB.B   #1, COUNTER
+0000107E  4E75                      68              RTS          
+00001080                            69   
+00001080                            70  CLEAR_STACK
+00001080  0C39 0000 000010AA        71              CMP.B     #0,COUNTER
+00001088  6700 0006                 72              BEQ       CLEAR_RETURN
+0000108C  61D4                      73              BSR       POP_STACK
+0000108E  60F0                      74              BRA       CLEAR_STACK
+00001090                            75   
+00001090                            76  CLEAR_RETURN
+00001090  4E75                      77              RTS            
+00001092                            78  END       
+00001092  43F9 000010A6             79              LEA     MSG,A1
+00001098  103C 000E                 80              MOVE.B  #14,D0
+0000109C  4E4F                      81              TRAP    #15
+0000109E                            82              
+0000109E  103C 0009                 83              MOVE.B  #9,D0
+000010A2  4E4F                      84              TRAP    #15          
+000010A4                            85      
+000010A4                            86              
+000010A4= 20 00                     87  MSG_SPACE   DC.B    ' ',0            
+000010A6= 45 4E 44 00               88  MSG       DC.B      'END',0   
+000010AA= 0001                      89  COUNTER   DC.W      1
+000010AC                            90            END       START        ; last line of source
+
+No errors detected
+No warnings generated
+
+
+SYMBOL TABLE INFORMATION
+Symbol-name         Value
+-------------------------
+CLEAR_RETURN        1090
+CLEAR_STACK         1080
+COUNTER             10AA
+DECREMENT           1078
+END                 1092
+INCREMENT           1070
+MSG                 10A6
+MSG_SPACE           10A4
+POP_RETURN          106E
+POP_STACK           1062
+PRINT_STACK         1030
+PRINT_STACK_HELPER  103C
+PUSH_STACK          105A
+SP                  7000
+START               1000

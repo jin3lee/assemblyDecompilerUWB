@@ -1,0 +1,2546 @@
+00001004 Starting Address
+Assembler used: EASy68K Editor/Assembler v5.15.02
+Created On: 12/6/2014 2:13:51 AM
+
+00000000                             1  *---------------------------------------------------------------------------*
+00000000                             2  * Title      : 68K Disassembler
+00000000                             3  * Written by : Team Circle
+00000000                             4  * Date       : 12/05/14
+00000000                             5  * Description: Scans a section of memory and converts its
+00000000                             6  *              contents to a listing of valid assembly 
+00000000                             7  *              language instructions
+00000000                             8  *---------------------------------------------------------------------------*
+00000000                             9  
+00000000                            10  *---------------------------------------------------------------------------*
+00000000                            11  * System Equates                                                 
+00000000                            12  *---------------------------------------------------------------------------*
+00000000  =0000000D                 13  CR          EQU     $0D                     * ASCII for Carriage Return
+00000000  =0000000A                 14  LF          EQU     $0A                     * ASCII for Line Feed 
+00000000  =00007000                 15  STACK       EQU     $7000                   * Initial Stack Pointer
+00000000                            16              
+00000000                            17  *---------------------------------------------------------------------------*
+00000000                            18  * Reserved Registers
+00000000                            19  *---------------------------------------------------------------------------*  
+00000000                            20  * D0 - I/O
+00000000                            21  * D1 - Temporary storage of processing data
+00000000                            22  * D4 - Opcode size (0 - byte; 1- word; 2-long)
+00000000                            23  * D5 - Processing data
+00000000                            24  * D6 - Loop counter to print 30 lines
+00000000                            25  * D7 - Error flag
+00000000                            26  * A5 - Processing address in hex
+00000000                            27  
+00000000                            28  *---------------------------------------------------------------------------*
+00000000                            29  * Start and loop program
+00000000                            30  *---------------------------------------------------------------------------*  
+00001000                            31              ORG     $1000
+00001000  4FF8 7000                 32              LEA     STACK,SP
+00001004                            33  START:            
+00001004  4EB9 00001028             34              JSR     INTRO                 
+0000100A  4EB9 00001036             35  PROGLP      JSR     START_ADDR
+00001010  4EB9 00001088             36              JSR     END_ADDR
+00001016  43F9 00002898             37              LEA     ENDLINE_M,A1           * Add a new line
+0000101C  103C 000E                 38              MOVE.B  #14, D0                  * Display A1
+00001020  4E4F                      39              TRAP    #15
+00001022                            40              
+00001022  4EF9 00001202             41              JMP     MAIN
+00001028                            42              
+00001028                            43  *---------------------------------------------------------------------------*
+00001028                            44  * INTRO: Display the introduction of the program
+00001028                            45  *---------------------------------------------------------------------------*
+00001028  43F9 000023B6             46  INTRO       LEA     WELCOME,A1              * Load PROMPT_START
+0000102E  103C 000E                 47              MOVE.B  #14,D0                  * Display A1
+00001032  4E4F                      48              TRAP    #15
+00001034  4E75                      49              RTS
+00001036                            50  *---------------------------------------------------------------------------*
+00001036                            51  * START_ADDR: Compute the starting address
+00001036                            52  *---------------------------------------------------------------------------*
+00001036                            53  START_ADDR
+00001036                            54              * Output
+00001036  43F9 0000268B             55              LEA     PROMPT_START,A1         * Load PROMPT_START 
+0000103C  103C 000E                 56              MOVE.B  #14,D0                  * Display PROMPT_START
+00001040  4E4F                      57              TRAP    #15
+00001042                            58      
+00001042                            59              * Input
+00001042  43F9 000027F0             60              LEA     VR_S_ADDR,A1            * Load VR_S_ADDR
+00001048  103C 0002                 61              MOVE.B  #2,D0                   * Ask user for input
+0000104C  4E4F                      62              TRAP    #15
+0000104E                            63              
+0000104E                            64              * Error Checking (length)
+0000104E  0C01 0000                 65              CMPI.B  #0, D1                  * Check if input length <= 0
+00001052  6F00 0098                 66              BLE     ERROR_1
+00001056  0C01 0008                 67              CMPI.B  #8, D1                  * Check if input length > 8
+0000105A  6E00 0090                 68              BGT     ERROR_1
+0000105E                            69              
+0000105E                            70              * Conversion & Storage
+0000105E  4EB9 0000113C             71              JSR     ASCII2HEX               * Jump to ASCII2HEX
+00001064  0C07 0001                 72              CMPI.B  #1, D7                  * Check for error
+00001068  6700 0082                 73              BEQ     ERROR_1                 
+0000106C  23C1 00002890             74              MOVE.L  D1, S_ADDR_HX           * Move the result to S_ADDR_HX 
+00001072                            75              
+00001072                            76              * Error Checking (Odd)
+00001072  43F9 00002890             77              LEA     S_ADDR_HX, A1           * Load 'S_ADDR_HX' for odd error
+00001078  4EB9 000011E6             78              JSR     IS_ODD                  * Check if the input address is odd
+0000107E  0C07 0001                 79              CMPI.B  #1, D7                  * Check for error
+00001082  6700 0088                 80              BEQ     ERROR_3
+00001086                            81              
+00001086                            82              * Return
+00001086  4E75                      83              RTS     
+00001088                            84  *---------------------------------------------------------------------------*
+00001088                            85  * END_ADDR: Compute the ending address
+00001088                            86  *---------------------------------------------------------------------------*
+00001088                            87  END_ADDR
+00001088                            88              * Output
+00001088  43F9 000026BA             89              LEA     PROMPT_END,A1           * Load PROMPT_END
+0000108E  103C 000E                 90              MOVE.B  #14,D0                  * Display PROMPT_END
+00001092  4E4F                      91              TRAP    #15
+00001094                            92  
+00001094                            93              * Input
+00001094  43F9 00002840             94              LEA     VR_E_ADDR,A1            * Load VR_E_ADDR
+0000109A  103C 0002                 95              MOVE.B  #2,D0                   * Ask user for input
+0000109E  4E4F                      96              TRAP    #15
+000010A0                            97              
+000010A0                            98              * Error Checking (length)
+000010A0  0C01 0000                 99              CMPI.B  #0, D1                  * Check if input length <= 0
+000010A4  6F00 0056                100              BLE     ERROR_2
+000010A8  0C01 0008                101              CMPI.B  #8, D1                  * Check if input length > 8
+000010AC  6E00 004E                102              BGT     ERROR_2
+000010B0                           103              
+000010B0                           104              * Conversion & Storage
+000010B0  4EB9 0000113C            105              JSR     ASCII2HEX               * Jump to ASCII2HEX
+000010B6  0C07 0001                106              CMPI.B  #1, D7                  * Check for error
+000010BA  6700 0040                107              BEQ     ERROR_2
+000010BE  23C1 00002894            108              MOVE.L  D1, E_ADDR_HX           * Move the result to E_ADDR_HX
+000010C4                           109              
+000010C4                           110              * Error Checking (start > end case)
+000010C4  2439 00002890            111              MOVE.L  S_ADDR_HX, D2           * Move the starting address to D2
+000010CA  B282                     112              CMP.L   D2, D1                  * Compare starting and ending address
+000010CC  6300 005E                113              BLS     ERROR_5                 * Go to ERROR_5 if ending < starting
+000010D0                           114              
+000010D0                           115              * Error Checking (Odd case)
+000010D0  43F9 00002894            116              LEA     E_ADDR_HX, A1           * Move the ending address
+000010D6  4EB9 000011E6            117              JSR     IS_ODD                  * Go to IS_ODD for odd address checking
+000010DC  0C07 0001                118              CMPI.B  #1, D7                  * Check for an error flag
+000010E0  6700 003A                119              BEQ     ERROR_4
+000010E4                           120              
+000010E4                           121              * Inputs are valid
+000010E4  2A79 00002890            122              MOVE.L  S_ADDR_HX, A5           * Store the valid input in A5
+000010EA                           123              
+000010EA  4E75                     124              RTS
+000010EC                           125              
+000010EC                           126  *---------------------------------------------------------------------------*
+000010EC                           127  * ERROR_1: Address error (Invalid starting address)
+000010EC                           128  *---------------------------------------------------------------------------*
+000010EC                           129  ERROR_1
+000010EC  43F9 0000277F            130              LEA     ERRMSG_1, A1            * Load ERRMSG_1
+000010F2  103C 000E                131              MOVE.B  #14, D0                 * Display ERRMSG_1
+000010F6  4E4F                     132              TRAP    #15
+000010F8  4EF8 1036                133              JMP     START_ADDR              * Jump to START_ADDR
+000010FC                           134      
+000010FC                           135  *---------------------------------------------------------------------------*
+000010FC                           136  * ERROR_2: Address error (Invalid ending address)
+000010FC                           137  *---------------------------------------------------------------------------*
+000010FC                           138  ERROR_2
+000010FC  43F9 0000277F            139              LEA     ERRMSG_1, A1            * Load ERRMSG_1
+00001102  103C 000E                140              MOVE.B  #14, D0                 * Display ERRMSG_1
+00001106  4E4F                     141              TRAP    #15
+00001108  4EF8 1088                142              JMP     END_ADDR                * Jump to END_ADDR
+0000110C                           143  
+0000110C                           144  *---------------------------------------------------------------------------*
+0000110C                           145  * ERROR_3: Address error (Odd starting address)
+0000110C                           146  *---------------------------------------------------------------------------*
+0000110C                           147  ERROR_3
+0000110C  43F9 0000279E            148              LEA     ERRMSG_3, A1
+00001112  103C 000E                149              MOVE.B  #14, D0
+00001116  4E4F                     150              TRAP    #15
+00001118  4EF8 1036                151              JMP     START_ADDR
+0000111C                           152     
+0000111C                           153  *---------------------------------------------------------------------------*
+0000111C                           154  * ERROR_4: Address error (Odd ending address)
+0000111C                           155  *---------------------------------------------------------------------------*         
+0000111C                           156  ERROR_4
+0000111C  43F9 0000279E            157              LEA     ERRMSG_3, A1
+00001122  103C 000E                158              MOVE.B  #14, D0
+00001126  4E4F                     159              TRAP    #15
+00001128  4EF8 1088                160              JMP     END_ADDR
+0000112C                           161            
+0000112C                           162  *---------------------------------------------------------------------------*
+0000112C                           163  * ERROR_3: Address error (Ending address is less than starting address)
+0000112C                           164  *---------------------------------------------------------------------------*
+0000112C                           165  ERROR_5
+0000112C  43F9 000027C3            166              LEA     ERRMSG_5, A1
+00001132  103C 000E                167              MOVE.B  #14, D0
+00001136  4E4F                     168              TRAP    #15
+00001138  4EF8 1088                169              JMP     END_ADDR
+0000113C                           170    
+0000113C                           171  *---------------------------------------------------------------------------*
+0000113C                           172  * ASCII2HEX: Convert ASCii to Hexadecimal
+0000113C                           173  * Reserved registers: A1 = Source, D1 = Destination, D2 = Byte, D7 = Error
+0000113C                           174  *---------------------------------------------------------------------------*
+0000113C  4281                     175  ASCII2HEX   CLR.L   D1                      * Clear the destination 
+0000113E  4287                     176              CLR.L   D7                      * Set the error flag to 0
+00001140  4282                     177              CLR.L   D2                      * Clear D2 for temp storage
+00001142                           178              
+00001142  1419                     179  ASC2HXLP    MOVE.B  (A1)+, D2               * Read a byte to D2
+00001144  0C02 0000                180              CMPI.B  #0, D2                  * Check for NULL (indicates the end of source)
+00001148  6700 0058                181              BEQ     RETURN                  * If it's NULL, go to return
+0000114C  0C02 0066                182              CMPI.B  #102, D2                * Decimal ASCII value of f is 102
+00001150  6E00 004C                183              BGT     ASC_ERR                 * ASCII > f (invalid input) 
+00001154  0C02 0061                184              CMPI.B  #97, D2                 * Decimal ASCII value of a is 97
+00001158  6C00 0026                185              BGE     ASC_LOW                 * ASCII >= a (valid input)
+0000115C  0C02 0046                186              CMPI.B  #70, D2                 * Decimal ASCII value of F is 70
+00001160  6E00 003C                187              BGT     ASC_ERR                 * ASCII > F (invalid input)
+00001164  0C02 0041                188              CMPI.B  #65, D2                 * Decimal ASCII value of A is 65
+00001168  6C00 001E                189              BGE     ASC_UPP                 * ASCII >= A (valid input)
+0000116C  0C02 0039                190              CMPI.B  #57, D2                 * Decimal value of 9 is 57
+00001170  6E00 002C                191              BGT     ASC_ERR                 * ASCII > 9 (invalid input)
+00001174  0C02 0030                192              CMPI.B  #48, D2                 * Decimal ASCII value of 0 is 48
+00001178  6C00 0016                193              BGE     ASC_NUM                 * ASCII >= 0 (valid input)
+0000117C  6000 0020                194              BRA     ASC_ERR                 * Invalid input
+00001180                           195  
+00001180  0442 0057                196  ASC_LOW     SUBI    #87, D2                 * Convert the ASCII input to Hex
+00001184  6000 0012                197              BRA     ASC_SFT                 * Go to ASC_SFT to shift the bits
+00001188                           198              
+00001188  0442 0037                199  ASC_UPP     SUBI    #55, D2                 * Convert the ASCII input to Hex
+0000118C  6000 000A                200              BRA     ASC_SFT                 * Go to ASC_SFT to shift the bits
+00001190                           201              
+00001190  0442 0030                202  ASC_NUM     SUBI    #48, D2                 * Convert the ASCII input to Hex
+00001194  6000 0002                203              BRA     ASC_SFT                 * Go to ASC_SFT to shift the bits
+00001198                           204              
+00001198  E981                     205  ASC_SFT     ASL.L   #4, D1                  * Shift the dest to left by 4 bits
+0000119A  D202                     206              ADD.B   D2, D1                  * Add the converted input to D1
+0000119C  60A4                     207              BRA     ASC2HXLP                * Loop
+0000119E                           208  
+0000119E  1E3C 0001                209  ASC_ERR     MOVE.B  #1, D7                  * Set the error flag to 1            
+000011A2  4E75                     210  RETURN      RTS     
+000011A4                           211  
+000011A4                           212  *---------------------------------------------------------------------------*
+000011A4                           213  * HEX2ASCII: Convert Hexadecimal to ASCii 
+000011A4                           214  * Reserved registers: A1 = Destination, D1 = Source, D2 = Size, D7 = Byte
+000011A4                           215  *---------------------------------------------------------------------------*
+000011A4  0C02 0008                216  HEX2ASCII   CMPI.B  #8, D2                  * Check to see if the size is long
+000011A8  6700 000E                217              BEQ     HEX_LOOP
+000011AC  4841                     218              SWAP    D1
+000011AE  0C02 0002                219              CMPI.B  #2,D2
+000011B2  6600 0004                220              BNE     HEX_LOOP
+000011B6  E189                     221              LSL.L   #8,D1
+000011B8                           222             
+000011B8  E999                     223  HEX_LOOP    ROL.L   #4, D1                  * Roll D1 to left
+000011BA  2601                     224              MOVE.L  D1, D3                  * Move D1 to D3
+000011BC  0283 0000000F            225              ANDI.L  #$F,D3                  * Retrieve the right most 4 bits
+000011C2  0C03 0009                226              CMPI.B  #9, D3                  * Compare te digit
+000011C6  6E00 000A                227              BGT     HEX_CHAR              
+000011CA  0603 0030                228              ADDI.B  #48,D3                  * Add 48 for numerical output
+000011CE  6000 0006                229              BRA     HEX_CONT
+000011D2                           230              
+000011D2  0603 0037                231  HEX_CHAR    ADDI.B  #55,D3                  * Add 55 for character output
+000011D6                           232  
+000011D6  12C3                     233  HEX_CONT    MOVE.B  D3, (A1)+               * Place into A1
+000011D8  5342                     234              SUBI    #1, D2                  * Decrement the size
+000011DA  0C02 0000                235              CMPI.B  #0, D2                  * Check if D2 is 0
+000011DE  66D8                     236              BNE     HEX_LOOP                * Loop
+000011E0  12BC 0000                237              MOVE.B  #$0,(A1)                * Null terminator
+000011E4  4E75                     238              RTS
+000011E6                           239  
+000011E6                           240  *---------------------------------------------------------------------------*
+000011E6                           241  * IS_ODD: Check whether the source address is odd
+000011E6                           242  * Reserved registers: A1 = Source, D1 = Result, D7 = error flag
+000011E6                           243  *---------------------------------------------------------------------------*
+000011E6  4281                     244  IS_ODD      CLR.L   D1                      * Clear the result
+000011E8  4287                     245              CLR.L   D7                      * Set the error flag to 0
+000011EA  2211                     246              MOVE.L  (A1),D1                * Temp store the checking address to D1
+000011EC  82FC 0002                247              DIVU    #2, D1                  * Divide the result by 2
+000011F0  4841                     248              SWAP    D1                      * Swap remainder with quotient
+000011F2  0C01 0001                249              CMPI.B  #1, D1                  * Check for error
+000011F6  6700 0004                250              BEQ     IS_ODD_ERR
+000011FA  4E75                     251              RTS
+000011FC                           252              
+000011FC  1E3C 0001                253  IS_ODD_ERR  MOVE.B  #1, D7
+00001200  4E75                     254              RTS
+00001202                           255  
+00001202                           256  *---------------------------------------------------------------------------*
+00001202                           257  * MAIN
+00001202                           258  * A5: Processing address
+00001202                           259  *---------------------------------------------------------------------------*  
+00001202                           260  MAIN        
+00001202                           261              * clear registers for temp storage
+00001202  4280                     262              CLR.L   D0                   
+00001204  4281                     263              CLR.L   D1                   
+00001206  227C 00000000            264              MOVEA.L #0, A1                
+0000120C                           265              
+0000120C  220D                     266              MOVE.L  A5,D1                   * check to see if the address is fully read
+0000120E  23CD 00002890            267              MOVE.L  A5,S_ADDR_HX
+00001214  B2B9 00002894            268              CMP.L   E_ADDR_HX,D1
+0000121A  6C00 1146                269              BGE     REPEAT                  * go to repeat for user action
+0000121E                           270  
+0000121E  43F9 000028EB            271              LEA     TMPOUTPUT,A1            * allocate storage to hold output
+00001224  143C 0008                272              MOVE.B  #8,D2                   * set the output size
+00001228  4EB8 11A4                273              JSR     HEX2ASCII               
+0000122C  43F9 000028EB            274              LEA     TMPOUTPUT,A1
+00001232  103C 000E                275              MOVE.B  #14,D0
+00001236  4E4F                     276              TRAP    #15
+00001238                           277              
+00001238  4285                     278              CLR.L    D5                      * clear the processing data
+0000123A  3A1D                     279              MOVE.W  (A5)+,D5                 * copy the currently processing data in A5 over to D5
+0000123C                           280                                               * advance the current instruction pointer to the next
+0000123C                           281                                               * instruction in memory
+0000123C                           282  
+0000123C                           283              * process the first 4 most significant bits 
+0000123C                           284              *CLR.L   D1                      * clear for temp storage
+0000123C  2205                     285              MOVE.L  D5,D1                    * copy the current processing data to D1
+0000123E  143C 000C                286              MOVE.B  #12,D2                   * shift to right by 12 bits
+00001242  E469                     287              LSR.W   D2,D1                       
+00001244  C2FC 0006                288              MULU    #6,D1                    * form offset
+00001248  43F9 0000127C            289              LEA     JMPTABLE,A1              * index into table
+0000124E  4EB1 1000                290              JSR     0(A1,D1)                 * jump indirect with index
+00001252                           291              
+00001252                           292              * display 30 lines per page
+00001252  5206                     293              ADDI.B  #1,D6
+00001254  0C06 001E                294              CMPI.B  #30,D6
+00001258  6C00 0004                295              BGE     NEXTLINES
+0000125C  60A4                     296              BRA     MAIN
+0000125E                           297            
+0000125E                           298  *---------------------------------------------------------------------------*
+0000125E                           299  * NEXTLINES: receive input from user to print the next 30 lines
+0000125E                           300  *---------------------------------------------------------------------------*  
+0000125E  4206                     301  NEXTLINES   CLR.B   D6
+00001260  43F9 000026E7            302              LEA     DISP_NEXT,A1
+00001266  103C 000E                303              MOVE.B  #14,D0
+0000126A  4E4F                     304              TRAP    #15
+0000126C  43F9 0000289B            305              LEA     TMPINPUT,A1
+00001272  103C 0002                306              MOVE.B  #2,D0
+00001276  4E4F                     307              TRAP    #15
+00001278  4EF8 1202                308              JMP     MAIN
+0000127C                           309    
+0000127C                           310  *---------------------------------------------------------------------------*
+0000127C                           311  * JMPTABLE: OP code jump/branch table used to decode and display opcodes
+0000127C                           312  *---------------------------------------------------------------------------*  
+0000127C  4EF9 000012DC            313  JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI/BTST
+00001282  4EF9 00001502            314              JMP     OP0001  * MOVE.B
+00001288  4EF9 00001556            315              JMP     OP0010  * MOVE.L/MOVEA.L
+0000128E  4EF9 000015B8            316              JMP     OP0011  * MOVE.W/MOVEA.W
+00001294  4EF9 00001618            317              JMP     OP0100  * MOVEM/LEA/NEG/NOT/JSR/RTS
+0000129A  4EF9 000017B2            318              JMP     OP0101  * ADDQ
+000012A0  4EF9 0000182E            319              JMP     OP0110  * BRA/Bcc (BEQ/BNE/BLT/BHI)
+000012A6  4EF9 000018BC            320              JMP     OP0111  * MOVEQ (unassigned)
+000012AC  4EF9 000018C0            321              JMP     OP1000  * DIVS
+000012B2  4EF9 000018FC            322              JMP     OP1001  * SUB/SUBA
+000012B8  4EF9 000019D4            323              JMP     OP1010  * Unassigned 
+000012BE  4EF9 000019D8            324              JMP     OP1011  * CMP/EOR/CMPA
+000012C4  4EF9 00001AD4            325              JMP     OP1100  * MULS/AND
+000012CA  4EF9 00001B70            326              JMP     OP1101  * ADD/ADDA
+000012D0  4EF9 00001C42            327              JMP     OP1110  * LSR/LSL/ASR/ASL/ROL/ROR
+000012D6  4EF9 00001EF0            328              JMP     OP1111  * Special/Reserved
+000012DC                           329              
+000012DC                           330  *---------------------------------------------------------------------------*
+000012DC                           331  * OP0000: decode CMPI/ORI/BTST/SUBI/EORI
+000012DC                           332  *---------------------------------------------------------------------------*           
+000012DC                           333  OP0000
+000012DC  4281                     334              CLR.L   D1          * to temporarily store the address to process
+000012DE  4280                     335              CLR.L   D0  
+000012E0  4284                     336              CLR.L   D4                 
+000012E2  227C 00000000            337              MOVEA.L #0, A1                
+000012E8                           338              * Check for ORI (0000 0000 xx (size) xxx (EA mode) xxx(EA reg)
+000012E8                           339              * Check if bit 11,10,9,8 are 0000)
+000012E8  2205                     340              MOVE.L  D5,D1
+000012EA  0281 00000F00            341              ANDI.L  #$0F00,D1
+000012F0  0C81 00000000            342              CMPI.L  #$0000,D1   * if they are 0000, it is ORI
+000012F6  6700 01B4                343              BEQ     OP_ORI
+000012FA                           344  
+000012FA                           345              * check for CMPI (0000 1100 xx (size) xxx (EA mode) xxx (EA reg)
+000012FA                           346              * check if bit 11,10,9,8 are 1100
+000012FA  4281                     347              CLR.L   D1
+000012FC  2205                     348              MOVE.L  D5,D1
+000012FE  0281 00000F00            349              ANDI.L  #$0F00,D1
+00001304  0C81 00000C00            350              CMPI.L  #$0C00,D1
+0000130A  6700 014A                351              BEQ     OP_CMPI
+0000130E                           352              
+0000130E                           353              * check for SUBI
+0000130E  4281                     354              CLR.L   D1
+00001310  2205                     355              MOVE.L  D5,D1
+00001312  0281 00000F00            356              ANDI.L  #$0F00,D1
+00001318  0C81 00000400            357              CMPI.L  #$0400,D1
+0000131E  6700 0094                358              BEQ     OP_SUBI
+00001322                           359              
+00001322                           360              * check for EORI
+00001322  4281                     361              CLR.L   D1
+00001324  2205                     362              MOVE.L  D5,D1
+00001326  0281 00000F00            363              ANDI.L  #$0F00,D1
+0000132C  0C81 00000A00            364              CMPI.L  #$0A00,D1
+00001332  6700 002A                365              BEQ     OP_EORI
+00001336                           366              
+00001336                           367              * check for BTST
+00001336  4281                     368              CLR.L   D1
+00001338  2205                     369              MOVE.L  D5,D1
+0000133A  EA99                     370              ROR.L   #5,D1
+0000133C  0281 00000008            371              ANDI.L  #$8,D1
+00001342  0C01 0008                372              CMPI.B  #8,D1
+00001346  6700 0008                373              BEQ     OP_BTST
+0000134A                           374  
+0000134A                           375              * OP0000 series other than ORI/CMPI/BTST/EORI
+0000134A  4EF9 0000140A            376              JMP     OP_DATA
+00001350                           377              
+00001350                           378  *---------------------------------------------------------------------------*
+00001350                           379  * OP_BTST: display BTST
+00001350                           380  *---------------------------------------------------------------------------* 
+00001350  43F9 00002974            381  OP_BTST     LEA     DISP_BTST,A1
+00001356  103C 000E                382              MOVE.B  #14,D0
+0000135A  4E4F                     383              TRAP    #15
+0000135C  4E75                     384              RTS
+0000135E                           385  
+0000135E                           386  *---------------------------------------------------------------------------*
+0000135E                           387  * OP_EORI: decode and display EORI
+0000135E                           388  *---------------------------------------------------------------------------* 
+0000135E                           389  OP_EORI
+0000135E  4281                     390              CLR.L   D1
+00001360  4284                     391              CLR.L   D4
+00001362  2205                     392              MOVE.L  D5,D1
+00001364  EC99                     393              ROR.L   #6,D1       * shift bit 7,6 to bit 1,0
+00001366  0C01 0000                394              CMPI.B  #0,D1
+0000136A  6700 0012                395              BEQ     OP_EORI_B    * size is byte
+0000136E  0C01 0001                396              CMPI.B  #1,D1
+00001372  6700 001C                397              BEQ     OP_EORI_W    * size is word
+00001376  0C01 0002                398              CMPI.B  #2,D1
+0000137A  6700 0026                399              BEQ     OP_EORI_L    * size is long
+0000137E                           400  
+0000137E                           401  OP_EORI_B    * size is byte    
+0000137E  183C 0000                402              MOVE.B  #0,D4
+00001382  43F9 00002956            403              LEA     DISP_EORI_B,A1
+00001388  103C 000E                404              MOVE.B  #14,D0
+0000138C  4E4F                     405              TRAP    #15
+0000138E  4E75                     406              RTS
+00001390                           407              
+00001390                           408  OP_EORI_W    * size is word
+00001390  183C 0001                409              MOVE.B  #1,D4
+00001394  43F9 00002960            410              LEA     DISP_EORI_W,A1
+0000139A  103C 000E                411              MOVE.B  #14,D0
+0000139E  4E4F                     412              TRAP    #15
+000013A0  4E75                     413              RTS
+000013A2                           414              
+000013A2                           415  OP_EORI_L    * size is long
+000013A2  183C 0002                416              MOVE.B  #2,D4
+000013A6  43F9 0000296A            417              LEA     DISP_EORI_L,A1
+000013AC  103C 000E                418              MOVE.B  #14,D0
+000013B0  4E4F                     419              TRAP    #15
+000013B2  4E75                     420              RTS
+000013B4                           421              
+000013B4                           422  *---------------------------------------------------------------------------*
+000013B4                           423  * OP_SUBI: decode SUBI.B/.W/.L
+000013B4                           424  *---------------------------------------------------------------------------* 
+000013B4                           425  OP_SUBI
+000013B4  4281                     426              CLR.L   D1
+000013B6  4284                     427              CLR.L   D4
+000013B8  2205                     428              MOVE.L  D5,D1
+000013BA  EC99                     429              ROR.L   #6,D1       * shift bit 7,6 to bit 1,0
+000013BC  0C01 0000                430              CMPI.B  #0,D1
+000013C0  6700 0012                431              BEQ     OP_SUBI_B    * size is byte
+000013C4  0C01 0001                432              CMPI.B  #1,D1
+000013C8  6700 001C                433              BEQ     OP_SUBI_W    * size is word
+000013CC  0C01 0002                434              CMPI.B  #2,D1
+000013D0  6700 0026                435              BEQ     OP_SUBI_L    * size is long
+000013D4                           436  
+000013D4                           437  OP_SUBI_B    * size is byte    
+000013D4  183C 0000                438              MOVE.B  #0,D4
+000013D8  43F9 00002A62            439              LEA     DISP_SUBI_B,A1
+000013DE  103C 000E                440              MOVE.B  #14,D0
+000013E2  4E4F                     441              TRAP    #15
+000013E4  4E75                     442              RTS
+000013E6                           443              
+000013E6                           444  OP_SUBI_W    * size is word
+000013E6  183C 0001                445              MOVE.B  #1,D4
+000013EA  43F9 00002A6C            446              LEA     DISP_SUBI_W,A1
+000013F0  103C 000E                447              MOVE.B  #14,D0
+000013F4  4E4F                     448              TRAP    #15
+000013F6  4E75                     449              RTS
+000013F8                           450              
+000013F8                           451  OP_SUBI_L    * size is long
+000013F8  183C 0002                452              MOVE.B  #2,D4
+000013FC  43F9 00002A76            453              LEA     DISP_SUBI_L,A1
+00001402  103C 000E                454              MOVE.B  #14,D0
+00001406  4E4F                     455              TRAP    #15
+00001408  4E75                     456              RTS
+0000140A                           457              
+0000140A                           458  *---------------------------------------------------------------------------*
+0000140A                           459  * OP_DATA : unidentified opcode
+0000140A                           460  *---------------------------------------------------------------------------* 
+0000140A                           461  OP_DATA
+0000140A  4280                     462              CLR.L   D0                   
+0000140C  4281                     463              CLR.L   D1     
+0000140E  4284                     464              CLR.L   D4                    
+00001410  227C 00000000            465              MOVEA.L #0, A1             
+00001416  4287                     466              CLR.L   D7
+00001418  1E3C 0001                467              MOVE.B  #1,D7                   * error flag is true
+0000141C                           468              
+0000141C  43F9 0000299A            469              LEA     DISP_DATA,A1
+00001422  103C 000E                470              MOVE.B  #14,D0
+00001426  4E4F                     471              TRAP    #15
+00001428                           472              
+00001428  4EF9 0000142E            473              JMP     EA_DATA
+0000142E                           474             
+0000142E                           475             
+0000142E                           476  *---------------------------------------------------------------------------*
+0000142E                           477  * EA_DATA
+0000142E                           478  *---------------------------------------------------------------------------*       
+0000142E  43F9 000028EB            479  EA_DATA     LEA     TMPOUTPUT,A1    * load the temporarily stored output address
+00001434  2205                     480              MOVE.L  D5,D1           * transfer the processing data to D1
+00001436  7404                     481              MOVE.L  #4,D2           * set to word size
+00001438  4EB8 11A4                482              JSR     HEX2ASCII       * prepare output in ascii
+0000143C  43F9 00002C18            483              LEA     DISP_HEX,A1     * display $ symbol
+00001442  103C 000E                484              MOVE.B  #14,D0      
+00001446  4E4F                     485              TRAP    #15
+00001448  43F9 000028EB            486              LEA     TMPOUTPUT,A1    * display with a new line
+0000144E  103C 000D                487              MOVE.B  #13,D0
+00001452  4E4F                     488              TRAP    #15
+00001454                           489  
+00001454  4E75                     490              RTS
+00001456                           491              
+00001456                           492  *---------------------------------------------------------------------------*
+00001456                           493  * OP_CMPI : decode CMPI and its size
+00001456                           494  *---------------------------------------------------------------------------*          
+00001456                           495  OP_CMPI
+00001456  4281                     496              CLR.L   D1
+00001458  4284                     497              CLR.L   D4
+0000145A  2205                     498              MOVE.L  D5,D1
+0000145C  EC99                     499              ROR.L   #6,D1       * shift bit 7,6 to bit 1,0
+0000145E  0C01 0000                500              CMPI.B  #0,D1
+00001462  6700 0012                501              BEQ     OP_CMPI_B    * size is byte
+00001466  0C01 0001                502              CMPI.B  #1,D1
+0000146A  6700 001C                503              BEQ     OP_CMPI_W    * size is word
+0000146E  0C01 0002                504              CMPI.B  #2,D1
+00001472  6700 0026                505              BEQ     OP_CMPI_L    * size is long
+00001476                           506  
+00001476                           507  OP_CMPI_B    * size is byte    
+00001476  183C 0000                508              MOVE.B  #0,D4
+0000147A  43F9 0000297C            509              LEA     DISP_CMPI_B,A1
+00001480  103C 000E                510              MOVE.B  #14,D0
+00001484  4E4F                     511              TRAP    #15
+00001486  4E75                     512              RTS
+00001488                           513              
+00001488                           514  OP_CMPI_W    * size is word
+00001488  183C 0001                515              MOVE.B  #1,D4
+0000148C  43F9 00002986            516              LEA     DISP_CMPI_W,A1
+00001492  103C 000E                517              MOVE.B  #14,D0
+00001496  4E4F                     518              TRAP    #15
+00001498  4E75                     519              RTS
+0000149A                           520              
+0000149A                           521  OP_CMPI_L    * size is long
+0000149A  183C 0002                522              MOVE.B  #2,D4
+0000149E  43F9 00002990            523              LEA     DISP_CMPI_L,A1
+000014A4  103C 000E                524              MOVE.B  #14,D0
+000014A8  4E4F                     525              TRAP    #15
+000014AA  4E75                     526              RTS
+000014AC                           527   
+000014AC                           528  *---------------------------------------------------------------------------*
+000014AC                           529  * OP_ORI : decode ORI and its size
+000014AC                           530  *---------------------------------------------------------------------------* 
+000014AC                           531  OP_ORI      
+000014AC  4281                     532              CLR.L   D1
+000014AE  4284                     533              CLR.L   D4
+000014B0  2205                     534              MOVE.L  D5,D1
+000014B2  EC99                     535              ROR.L   #6,D1       * shift bit 7,6 to bit 1,0
+000014B4  0C01 0000                536              CMPI.B  #0,D1
+000014B8  6700 0012                537              BEQ     OP_ORI_B    * size is byte
+000014BC  0C01 0001                538              CMPI.B  #1,D1
+000014C0  6700 001C                539              BEQ     OP_ORI_W    * size is word
+000014C4  0C01 0002                540              CMPI.B  #2,D1
+000014C8  6700 0026                541              BEQ     OP_ORI_L    * size is long
+000014CC                           542  
+000014CC                           543  OP_ORI_B    * size is byte    
+000014CC  183C 0000                544              MOVE.B  #0,D4
+000014D0  43F9 0000293B            545              LEA     DISP_ORI_B,A1
+000014D6  103C 000E                546              MOVE.B  #14,D0
+000014DA  4E4F                     547              TRAP    #15
+000014DC  4E75                     548              RTS
+000014DE                           549              
+000014DE                           550  OP_ORI_W    * size is word
+000014DE  183C 0001                551              MOVE.B  #1,D4
+000014E2  43F9 00002944            552              LEA     DISP_ORI_W,A1
+000014E8  103C 000E                553              MOVE.B  #14,D0
+000014EC  4E4F                     554              TRAP    #15
+000014EE  4E75                     555              RTS
+000014F0                           556              
+000014F0                           557  OP_ORI_L    * size is long
+000014F0  183C 0002                558              MOVE.B  #2,D4
+000014F4  43F9 0000294D            559              LEA     DISP_ORI_L,A1
+000014FA  103C 000E                560              MOVE.B  #14,D0
+000014FE  4E4F                     561              TRAP    #15
+00001500  4E75                     562              RTS
+00001502                           563          
+00001502                           564  *---------------------------------------------------------------------------*
+00001502                           565  * OP0001: MOVE.B/MOVEA.B
+00001502                           566  *---------------------------------------------------------------------------*
+00001502                           567  OP0001      
+00001502                           568              * clear registers to store temp data
+00001502  4280                     569              CLR.L   D0                      
+00001504  4281                     570              CLR.L   D1        
+00001506  4284                     571              CLR.L   D4                      
+00001508  227C 00000000            572              MOVEA.L #0, A1                  
+0000150E  2205                     573              MOVE.L  D5,D1
+00001510  EA99                     574              ROR.L   #5,D1
+00001512  0281 0000000E            575              ANDI.L  #$E,D1
+00001518  0C01 0002                576              CMPI.B  #2,D1
+0000151C  6700 0020                577              BEQ     OP_MOVEA_B
+00001520                           578              
+00001520  4EF9 00001526            579              JMP     OP_MOVE_B   * display MOVE.B
+00001526                           580              
+00001526                           581  *---------------------------------------------------------------------------*
+00001526                           582  * OP_MOVE_B: display MOVE_B and proceed to EA
+00001526                           583  *---------------------------------------------------------------------------*
+00001526                           584  OP_MOVE_B 
+00001526  183C 0000                585              MOVE.B  #0,D4
+0000152A  43F9 000029A2            586              LEA     DISP_MOVE_B,A1
+00001530  103C 000E                587              MOVE.B  #14,D0
+00001534  4E4F                     588              TRAP    #15
+00001536                           589              
+00001536  4EF9 00001F54            590              JMP     EA_GEN
+0000153C                           591  
+0000153C  4E75                     592              RTS
+0000153E                           593              
+0000153E                           594  *---------------------------------------------------------------------------*
+0000153E                           595  * OP_MOVEA_B: display MOVEA_B and proceed to EA
+0000153E                           596  *---------------------------------------------------------------------------*
+0000153E                           597  OP_MOVEA_B 
+0000153E  183C 0000                598              MOVE.B  #0,D4
+00001542  43F9 00002BF7            599              LEA     DISP_MOVEA_B,A1
+00001548  103C 000E                600              MOVE.B  #14,D0
+0000154C  4E4F                     601              TRAP    #15
+0000154E                           602              
+0000154E  4EF9 00001F2E            603              JMP     EA_MOVEA
+00001554                           604  
+00001554  4E75                     605              RTS
+00001556                           606             
+00001556                           607  *---------------------------------------------------------------------------*
+00001556                           608  * OP0010: decode MOVE.L/MOVEA.L
+00001556                           609  *---------------------------------------------------------------------------*
+00001556                           610  OP0010      
+00001556  183C 0002                611              MOVE.B  #2,D4
+0000155A  4280                     612              CLR.L   D0                     
+0000155C  4281                     613              CLR.L   D1                      
+0000155E  227C 00000000            614              MOVEA.L #0, A1                 
+00001564                           615              
+00001564  2205                     616              MOVE.L  D5,D1
+00001566  EA99                     617              ROR.L   #5,D1
+00001568  0281 0000000E            618              ANDI.L  #$E,D1
+0000156E  0C01 0002                619              CMPI.B  #2,D1
+00001572  6700 0026                620              BEQ     OP_MOVEA_L
+00001576                           621  
+00001576  4EF9 0000157C            622              JMP     OP_MOVE_L
+0000157C                           623             
+0000157C                           624  
+0000157C                           625  *---------------------------------------------------------------------------*
+0000157C                           626  * OP_MOVE_L: display MOVE_L and proceed to EA
+0000157C                           627  *---------------------------------------------------------------------------*
+0000157C                           628  OP_MOVE_L   
+0000157C  183C 0002                629              MOVE.B  #2,D4
+00001580  227C 00000000            630              MOVEA.L #0, A1
+00001586  43F9 000029B6            631              LEA     DISP_MOVE_L,A1
+0000158C  103C 000E                632              MOVE.B  #14,D0
+00001590  4E4F                     633              TRAP    #15
+00001592                           634              
+00001592  4EB9 00001F54            635              JSR     EA_GEN
+00001598  4E75                     636              RTS
+0000159A                           637  
+0000159A                           638  *---------------------------------------------------------------------------*
+0000159A                           639  * OP_MOVEA_L: display MOVEA_L and proceed to EA
+0000159A                           640  *---------------------------------------------------------------------------*
+0000159A                           641  OP_MOVEA_L 
+0000159A  183C 0002                642              MOVE.B  #2,D4
+0000159E  227C 00000000            643              MOVEA.L #0, A1
+000015A4  43F9 00002C0D            644              LEA     DISP_MOVEA_L,A1
+000015AA  103C 000E                645              MOVE.B  #14,D0
+000015AE  4E4F                     646              TRAP    #15
+000015B0  4EF9 00001F2E            647              JMP     EA_MOVEA
+000015B6                           648  
+000015B6  4E75                     649              RTS
+000015B8                           650              
+000015B8                           651  *---------------------------------------------------------------------------*
+000015B8                           652  * OP0011: decode MOVE.W/MOVEA.W
+000015B8                           653  *---------------------------------------------------------------------------*
+000015B8                           654  OP0011      
+000015B8  4280                     655              CLR.L   D0                      
+000015BA  4281                     656              CLR.L   D1  
+000015BC  4284                     657              CLR.L   D4                   
+000015BE  227C 00000000            658              MOVEA.L #0, A1               
+000015C4  2205                     659              MOVE.L  D5,D1
+000015C6  EA99                     660              ROR.L   #5,D1
+000015C8  0281 0000000E            661              ANDI.L  #$E,D1
+000015CE  0C01 0002                662              CMPI.B  #2,D1
+000015D2  6700 0026                663              BEQ     OP_MOVEA_W
+000015D6                           664              
+000015D6  4EF9 000015DC            665              JMP     OP_MOVE_W
+000015DC                           666            
+000015DC                           667  *---------------------------------------------------------------------------*
+000015DC                           668  * OP_MOVE_W: display MOVE_W and proceed to EA
+000015DC                           669  *---------------------------------------------------------------------------*
+000015DC                           670  OP_MOVE_W   
+000015DC  183C 0001                671              MOVE.B  #1,D4
+000015E0  227C 00000000            672              MOVEA.L #0, A1
+000015E6  43F9 000029AC            673              LEA     DISP_MOVE_W,A1
+000015EC  103C 000E                674              MOVE.B  #14,D0
+000015F0  4E4F                     675              TRAP    #15
+000015F2  4EF9 00001F54            676              JMP     EA_GEN
+000015F8                           677  
+000015F8  4E75                     678              RTS
+000015FA                           679  
+000015FA                           680  *---------------------------------------------------------------------------*
+000015FA                           681  * OP_MOVEA_W: display MOVEA and proceed to EA
+000015FA                           682  *---------------------------------------------------------------------------*
+000015FA                           683  OP_MOVEA_W 
+000015FA  183C 0001                684              MOVE.B  #1,D4
+000015FE  227C 00000000            685              MOVEA.L #0, A1
+00001604  43F9 00002C02            686              LEA     DISP_MOVEA_W,A1
+0000160A  103C 000E                687              MOVE.B  #14,D0
+0000160E  4E4F                     688              TRAP    #15
+00001610  4EF9 00001F2E            689              JMP     EA_MOVEA
+00001616                           690  
+00001616  4E75                     691              RTS
+00001618                           692            
+00001618                           693  *---------------------------------------------------------------------------*
+00001618                           694  * OP0100: decode MOVEM/LEA/NEG/JSR/RTS/NOT
+00001618                           695  *---------------------------------------------------------------------------*
+00001618                           696  OP0100
+00001618  4280                     697              CLR.L   D0                      
+0000161A  4281                     698              CLR.L   D1  
+0000161C  4284                     699              CLR.L   D4                      
+0000161E  227C 00000000            700              MOVEA.L #0, A1                  
+00001624  2205                     701              MOVE.L  D5,D1  
+00001626                           702              
+00001626                           703              * check for RTS
+00001626  0C41 4E75                704              CMPI.W  #$4E75,D1   * 0100 1110 0111 0101
+0000162A  6700 0178                705              BEQ     OP_RTS
+0000162E                           706              
+0000162E                           707              * check for JSR     * 0100 1110 10 xxx (ea mode) xxx (ea reg)
+0000162E  4281                     708              CLR.L   D1 
+00001630  2205                     709              MOVE.L  D5,D1  
+00001632  0241 0F00                710              ANDI.W  #$0F00,D1
+00001636  0C41 0E00                711              CMPI.W  #$0E00,D1
+0000163A  6700 0154                712              BEQ     OP_JSR
+0000163E                           713  
+0000163E                           714              * check for NEG     * 0100 0100 xx (size) xxx (ea mode) xxx (ea reg) 
+0000163E  4281                     715              CLR.L   D1 
+00001640  2205                     716              MOVE.L  D5,D1  
+00001642  0241 0F00                717              ANDI.W  #$0F00,D1
+00001646  0C41 0400                718              CMPI.W  #$0400,D1
+0000164A  6700 0086                719              BEQ     OP_NEG
+0000164E                           720              
+0000164E                           721              * check for NOT     * 0100 0110 xx (size) xxx (ea mode) xxx (ea reg)
+0000164E  4281                     722              CLR.L   D1 
+00001650  2205                     723              MOVE.L  D5,D1  
+00001652  0241 0F00                724              ANDI.W  #$0F00,D1
+00001656  0C41 0600                725              CMPI.W  #$0600,D1
+0000165A  6700 00DE                726              BEQ     OP_NOT
+0000165E                           727              
+0000165E                           728              * check for LEA     * 0100 xxx (reg) 111 xxx (ea mode) xxx (ea reg)
+0000165E  4281                     729              CLR.L   D1 
+00001660  2205                     730              MOVE.L  D5,D1  
+00001662  E099                     731              ROR.L   #8,D1
+00001664  0C01 0001                732              CMPI.B  #1,D1
+00001668  6700 0054                733              BEQ     OP_LEA
+0000166C                           734              
+0000166C                           735              * check for MOVEM   * 0100 1 x 001 x (size) xxx (ea mode) xxx (ea reg)
+0000166C  4281                     736              CLR.L   D1 
+0000166E  2205                     737              MOVE.L  D5,D1  
+00001670  EB59                     738              ROL.W   #5,D1
+00001672  0C01 0001                739              CMPI.B  #1,D1
+00001676  6600 FD92                740              BNE     OP_DATA
+0000167A  E959                     741              ROL.W   #4,D1
+0000167C  0C01 0001                742              CMPI.B  #1,D1
+00001680  6600 FD88                743              BNE     OP_DATA
+00001684  E359                     744              ROL.W   #1,D1
+00001686  0C01 0000                745              CMPI.B  #0,D1
+0000168A  6700 000E                746              BEQ     OP_MOVEM_W
+0000168E  0C01 0001                747              CMPI.B  #1,D1
+00001692  6700 0018                748              BEQ     OP_MOVEM_L
+00001696  4EF8 140A                749              JMP     OP_DATA
+0000169A                           750  
+0000169A                           751  *---------------------------------------------------------------------------*
+0000169A                           752  * OP_MOVEM_W: display MOVEM_W
+0000169A                           753  *---------------------------------------------------------------------------*    
+0000169A                           754  OP_MOVEM_W  
+0000169A  183C 0001                755              MOVE.B  #1,D4
+0000169E  43F9 00002A0B            756              LEA     DISP_MOVEM_W,A1
+000016A4  103C 000E                757              MOVE.B  #14,D0
+000016A8  4E4F                     758              TRAP    #15
+000016AA  4E75                     759              RTS
+000016AC                           760  
+000016AC                           761  *---------------------------------------------------------------------------*
+000016AC                           762  * OP_MOVEM_L: display MOVEM_L
+000016AC                           763  *---------------------------------------------------------------------------*
+000016AC                           764  OP_MOVEM_L  
+000016AC  183C 0002                765              MOVE.B  #2,D4
+000016B0  43F9 00002A16            766              LEA     DISP_MOVEM_L,A1
+000016B6  103C 000E                767              MOVE.B  #14,D0
+000016BA  4E4F                     768              TRAP    #15
+000016BC  4E75                     769              RTS
+000016BE                           770     
+000016BE                           771  *---------------------------------------------------------------------------*
+000016BE                           772  * OP_LEA: decode and display LEA
+000016BE                           773  *---------------------------------------------------------------------------*
+000016BE                           774  OP_LEA      
+000016BE  43F9 00002A04            775              LEA     DISP_LEA,A1
+000016C4  103C 000E                776              MOVE.B  #14,D0
+000016C8  4E4F                     777              TRAP    #15
+000016CA  4EF9 00001F2E            778              JMP     EA_MOVEA
+000016D0                           779  
+000016D0  4E75                     780              RTS
+000016D2                           781  
+000016D2                           782  *---------------------------------------------------------------------------*
+000016D2                           783  * OP_NEG: decode and display NEG 
+000016D2                           784  *---------------------------------------------------------------------------*
+000016D2                           785  OP_NEG      * 0100 0100 xx (size) xxx (ea mode) xxx (ea reg) 
+000016D2  4281                     786              CLR.L   D1
+000016D4  4284                     787              CLR.L   D4
+000016D6  2205                     788              MOVE.L  D5,D1
+000016D8  EC99                     789              ROR.L   #6,D1       * shift bit 7,6 to bit 1,0
+000016DA  0C01 0000                790              CMPI.B  #0,D1
+000016DE  6700 0012                791              BEQ     OP_NEG_B    * size is byte
+000016E2  0C01 0001                792              CMPI.B  #1,D1
+000016E6  6700 0022                793              BEQ     OP_NEG_W    * size is word
+000016EA  0C01 0002                794              CMPI.B  #2,D1
+000016EE  6700 0032                795              BEQ     OP_NEG_L    * size is long
+000016F2                           796                         
+000016F2                           797  OP_NEG_B    * size is byte   
+000016F2  183C 0000                798              MOVE.B  #0,D4 
+000016F6  43F9 000029CE            799              LEA     DISP_NEG_B,A1
+000016FC  103C 000E                800              MOVE.B  #14,D0
+00001700  4E4F                     801              TRAP    #15
+00001702                           802              
+00001702  4EB9 00001EF4            803              JSR     EA_NOSRC
+00001708  4E75                     804              RTS
+0000170A                           805              
+0000170A                           806  OP_NEG_W    * size is word
+0000170A  183C 0001                807              MOVE.B  #1,D4
+0000170E  43F9 000029D7            808              LEA     DISP_NEG_W,A1
+00001714  103C 000E                809              MOVE.B  #14,D0
+00001718  4E4F                     810              TRAP    #15
+0000171A  4EB9 00001EF4            811              JSR     EA_NOSRC
+00001720  4E75                     812              RTS
+00001722                           813              
+00001722                           814  OP_NEG_L    * size is long
+00001722  183C 0002                815              MOVE.B  #2,D4
+00001726  43F9 000029E0            816              LEA     DISP_NEG_L,A1
+0000172C  103C 000E                817              MOVE.B  #14,D0
+00001730  4E4F                     818              TRAP    #15
+00001732  4EB9 00001EF4            819              JSR     EA_NOSRC
+00001738                           820              
+00001738  4E75                     821              RTS
+0000173A                           822  
+0000173A                           823  *---------------------------------------------------------------------------*
+0000173A                           824  * OP_NOT: decode and display NOT 
+0000173A                           825  *---------------------------------------------------------------------------*
+0000173A                           826  OP_NOT
+0000173A  4281                     827              CLR.L   D1
+0000173C  4284                     828              CLR.L   D4
+0000173E  2205                     829              MOVE.L  D5,D1
+00001740  EC99                     830              ROR.L   #6,D1       * shift bit 7,6 to bit 1,0
+00001742  0C01 0000                831              CMPI.B  #0,D1
+00001746  6700 0012                832              BEQ     OP_NOT_B    * size is byte
+0000174A  0C01 0001                833              CMPI.B  #1,D1
+0000174E  6700 001C                834              BEQ     OP_NOT_W    * size is word
+00001752  0C01 0002                835              CMPI.B  #2,D1
+00001756  6700 0026                836              BEQ     OP_NOT_L    * size is long
+0000175A                           837                         
+0000175A                           838  OP_NOT_B    * size is byte   
+0000175A  183C 0000                839              MOVE.B  #0,D4 
+0000175E  43F9 000029E9            840              LEA     DISP_NOT_B,A1
+00001764  103C 000E                841              MOVE.B  #14,D0
+00001768  4E4F                     842              TRAP    #15
+0000176A  4E75                     843              RTS
+0000176C                           844              
+0000176C                           845  OP_NOT_W    * size is word
+0000176C  183C 0001                846              MOVE.B  #1,D4
+00001770  43F9 000029F2            847              LEA     DISP_NOT_W,A1
+00001776  103C 000E                848              MOVE.B  #14,D0
+0000177A  4E4F                     849              TRAP    #15
+0000177C  4E75                     850              RTS
+0000177E                           851              
+0000177E                           852  OP_NOT_L    * size is long
+0000177E  183C 0002                853              MOVE.B  #2,D4
+00001782  43F9 000029FB            854              LEA     DISP_NOT_L,A1
+00001788  103C 000E                855              MOVE.B  #14,D0
+0000178C  4E4F                     856              TRAP    #15
+0000178E  4E75                     857              RTS
+00001790                           858  
+00001790                           859  *---------------------------------------------------------------------------*
+00001790                           860  * OP_JSR: display JSR     
+00001790                           861  *---------------------------------------------------------------------------*
+00001790  43F9 000029C7            862  OP_JSR      LEA     DISP_JSR,A1
+00001796  103C 000E                863              MOVE.B  #14,D0
+0000179A  4E4F                     864              TRAP    #15
+0000179C  4EB9 00001EF4            865              JSR     EA_NOSRC
+000017A2                           866  
+000017A2  4E75                     867              RTS
+000017A4                           868  
+000017A4                           869  *---------------------------------------------------------------------------*
+000017A4                           870  * OP_RTS: display RTS     
+000017A4                           871  *---------------------------------------------------------------------------* 
+000017A4  43F9 000029C0            872  OP_RTS      LEA     DISP_RTS,A1
+000017AA  103C 000E                873              MOVE.B  #14,D0
+000017AE  4E4F                     874              TRAP    #15
+000017B0  4E75                     875              RTS
+000017B2                           876  
+000017B2                           877  *---------------------------------------------------------------------------*
+000017B2                           878  * OP0101: decode ADDQ
+000017B2                           879  *---------------------------------------------------------------------------* 
+000017B2  4280                     880  OP0101      CLR.L   D0               * clear registers for temp storage       
+000017B4  4281                     881              CLR.L   D1
+000017B6  4284                     882              CLR.L   D4                  
+000017B8  227C 00000000            883              MOVEA.L #0, A1  
+000017BE                           884              
+000017BE  2205                     885              MOVE.L  D5,D1           * copy the processing data 
+000017C0  E089                     886              LSR.L   #8,D1           * shift to right by 8 bits to check the value of bit 8
+000017C2  0201 0001                887              ANDI.B  #$1,D1          * mask all bits except the last 2 bits
+000017C6  0C01 0000                888              CMPI.B  #0,D1           * if the value is 0, it's ADDQ
+000017CA  6700 0006                889              BEQ     OP_ADDQ
+000017CE                           890              
+000017CE  4EF8 140A                891              JMP     OP_DATA
+000017D2                           892       
+000017D2  4281                     893  OP_ADDQ     CLR.L   D1
+000017D4  2205                     894              MOVE.L  D5,D1
+000017D6  EC99                     895              ROR.L   #6,D1       * shift bit 7,6 to bit 1,0
+000017D8  0281 00000003            896              ANDI.L  #$3,D1
+000017DE  0C01 0000                897              CMPI.B  #0,D1
+000017E2  6700 0014                898              BEQ     OP_ADDQ_B    * size is byte
+000017E6  0C41 0001                899              CMPI.W  #1,D1
+000017EA  6700 001E                900              BEQ     OP_ADDQ_W    * size is word
+000017EE  0C81 00000002            901              CMPI.L  #2,D1
+000017F4  6700 0026                902              BEQ     OP_ADDQ_L    * size is long
+000017F8                           903              
+000017F8                           904  *---------------------------------------------------------------------------*
+000017F8                           905  * OP_ADDQ: display ADDQ
+000017F8                           906  *---------------------------------------------------------------------------*              
+000017F8                           907  OP_ADDQ_B    * size is byte   
+000017F8  183C 0000                908              MOVE.B  #0,D4 
+000017FC  43F9 00002A21            909              LEA     DISP_ADDQ_B,A1
+00001802  103C 000E                910              MOVE.B  #14,D0
+00001806  4E4F                     911              TRAP    #15
+00001808  4E75                     912              RTS
+0000180A                           913              
+0000180A                           914  OP_ADDQ_W    * size is word
+0000180A  183C 0001                915              MOVE.B  #1,D4
+0000180E  43F9 00002A2B            916              LEA     DISP_ADDQ_W,A1
+00001814  103C 000E                917              MOVE.B  #14,D0
+00001818  4E4F                     918              TRAP    #15
+0000181A  4E75                     919              RTS
+0000181C                           920              
+0000181C                           921  OP_ADDQ_L    * size is long
+0000181C  183C 0002                922              MOVE.B  #2,D4
+00001820  43F9 00002A35            923              LEA     DISP_ADDQ_L,A1
+00001826  103C 000E                924              MOVE.B  #14,D0
+0000182A  4E4F                     925              TRAP    #15
+0000182C  4E75                     926              RTS
+0000182E                           927  
+0000182E                           928  *---------------------------------------------------------------------------*
+0000182E                           929  * OP0110: decode BRA/BEQ/BNE/BLT/BHI
+0000182E                           930  *---------------------------------------------------------------------------*              
+0000182E  4280                     931  OP0110      CLR.L   D0                  
+00001830  4281                     932              CLR.L   D1   
+00001832  4284                     933              CLR.L   D4                 
+00001834  227C 00000000            934              MOVEA.L #0,A1
+0000183A  2205                     935              MOVE.L  D5, D1                
+0000183C  0281 000000FF            936              ANDI.L  #$00FF, D1              * Get 8-bit displacement 
+00001842  2205                     937              MOVE.L  D5,D1                  
+00001844  0281 00000F00            938              ANDI.L  #$0F00,D1
+0000184A                           939                 
+0000184A  0C41 0000                940              CMPI.W  #$0000,D1               * Check for BRA
+0000184E  6700 0050                941              BEQ     OP_BRA                  
+00001852                           942                          
+00001852  0C41 0D00                943              CMPI.W  #$0D00,D1               * Check for BLT
+00001856  6700 0056                944              BEQ     OP_BLT      
+0000185A                           945  
+0000185A  0C41 0700                946              CMPI.W  #$0700,D1               * Check for BEQ
+0000185E  6700 0032                947              BEQ     OP_BEQ      
+00001862                           948  
+00001862  0C41 0600                949              CMPI.W  #$0600,D1               * Check for BNE
+00001866  6700 001C                950              BEQ     OP_BNE  
+0000186A                           951              
+0000186A  0C41 0200                952              CMPI.W  #$0200,D1               * Check for BHI
+0000186E  6700 0006                953              BEQ     OP_BHI
+00001872                           954  
+00001872  4EF8 140A                955              JMP     OP_DATA
+00001876                           956              
+00001876  43F9 00002BF0            957  OP_BHI      LEA     DISP_BHI,A1             
+0000187C  103C 000E                958              MOVE.B  #14,D0
+00001880  4E4F                     959              TRAP    #15
+00001882  4E75                     960              RTS
+00001884                           961  
+00001884  43F9 00002BE9            962  OP_BNE      LEA     DISP_BNE,A1             
+0000188A  103C 000E                963              MOVE.B  #14,D0
+0000188E  4E4F                     964              TRAP    #15
+00001890  4E75                     965              RTS
+00001892                           966  
+00001892  43F9 00002BE2            967  OP_BEQ      LEA     DISP_BEQ,A1             
+00001898  103C 000E                968              MOVE.B  #14,D0
+0000189C  4E4F                     969              TRAP    #15
+0000189E  4E75                     970              RTS          
+000018A0                           971                          
+000018A0  43F9 00002BD4            972  OP_BRA      LEA     DISP_BRA,A1             
+000018A6  103C 000E                973              MOVE.B  #14,D0
+000018AA  4E4F                     974              TRAP    #15
+000018AC  4E75                     975              RTS
+000018AE                           976              
+000018AE  43F9 00002BDB            977  OP_BLT      LEA     DISP_BLT,A1          
+000018B4  103C 000E                978              MOVE.B  #14,D0
+000018B8  4E4F                     979              TRAP    #15
+000018BA  4E75                     980              RTS
+000018BC                           981     
+000018BC                           982  *---------------------------------------------------------------------------*
+000018BC                           983  * OP0111 : MOVEQ not required
+000018BC                           984  *---------------------------------------------------------------------------*           
+000018BC  4EF8 140A                985  OP0111      JMP     OP_DATA
+000018C0                           986             
+000018C0                           987  *---------------------------------------------------------------------------*
+000018C0                           988  * OP1000 : decode DIVS
+000018C0                           989  *---------------------------------------------------------------------------*           
+000018C0                           990  OP1000      
+000018C0  4280                     991              CLR.L   D0                
+000018C2  4281                     992              CLR.L   D1   
+000018C4  4284                     993              CLR.L   D4                
+000018C6  207C 00000000            994              MOVEA.L #0, A0               
+000018CC  227C 00000000            995              MOVEA.L #0, A1               
+000018D2                           996              
+000018D2  2205                     997              MOVE.L  D5,D1
+000018D4  EA89                     998              LSR.L   #5,D1
+000018D6  0281 0000000E            999              ANDI.L  #$E,D1
+000018DC                          1000    
+000018DC  0C01 000E               1001              CMPI.B  #$E,D1
+000018E0  6700 0006               1002              BEQ     OP_DIVS
+000018E4                          1003              
+000018E4  4EF8 140A               1004              JMP     OP_DATA
+000018E8                          1005  
+000018E8                          1006  *---------------------------------------------------------------------------*
+000018E8                          1007  * OP_DIVS: display DIVS and proceed to EA
+000018E8                          1008  *---------------------------------------------------------------------------*  
+000018E8  43F9 00002A3F           1009  OP_DIVS     LEA     DISP_DIVS,A1
+000018EE  103C 000E               1010              MOVE.B  #14,D0
+000018F2  4E4F                    1011              TRAP    #15
+000018F4  4EF9 00001F08           1012              JMP     EA_ARITH
+000018FA                          1013  
+000018FA  4E75                    1014              RTS
+000018FC                          1015              
+000018FC                          1016  *---------------------------------------------------------------------------*
+000018FC                          1017  * OP1001: decode SUB/SUBA
+000018FC                          1018  *---------------------------------------------------------------------------*      
+000018FC  4280                    1019  OP1001      CLR.L   D0                
+000018FE  4281                    1020              CLR.L   D1   
+00001900  4284                    1021              CLR.L   D4                 
+00001902  207C 00000000           1022              MOVEA.L #0, A0                 
+00001908  227C 00000000           1023              MOVEA.L #0, A1               
+0000190E                          1024              
+0000190E  2205                    1025              MOVE.L  D5,D1
+00001910  EA89                    1026              LSR.L   #5,D1
+00001912  0281 0000000E           1027              ANDI.L  #$E,D1
+00001918                          1028    
+00001918  0C01 0000               1029              CMPI.B  #$0,D1
+0000191C  6700 004A               1030              BEQ     OP_SUB_B
+00001920  0C01 0002               1031              CMPI.B  #$2,D1
+00001924  6700 005A               1032              BEQ     OP_SUB_W
+00001928  0C01 0004               1033              CMPI.B  #$4,D1
+0000192C  6700 006A               1034              BEQ     OP_SUB_L
+00001930  0C01 0008               1035              CMPI.B  #$8,D1
+00001934  6700 0032               1036              BEQ     OP_SUB_B
+00001938  0C01 000A               1037              CMPI.B  #$A,D1
+0000193C  6700 0042               1038              BEQ     OP_SUB_W
+00001940  0C01 000C               1039              CMPI.B  #$C,D1
+00001944  6700 0052               1040              BEQ     OP_SUB_L
+00001948                          1041              
+00001948  4241                    1042              CLR     D1
+0000194A  2205                    1043              MOVE.L  D5,D1
+0000194C  EC89                    1044              LSR.L   #6,D1
+0000194E  0281 0000000F           1045              ANDI.L  #$F,D1
+00001954  0C01 0003               1046              CMPI.B  #3,D1
+00001958  6700 0056               1047              BEQ     OP_SUBA_W
+0000195C  0C01 0007               1048              CMPI.B  #7,D1
+00001960  6700 0060               1049              BEQ     OP_SUBA_L
+00001964                          1050              
+00001964  4EF8 140A               1051              JMP     OP_DATA
+00001968                          1052    
+00001968                          1053  *---------------------------------------------------------------------------*
+00001968                          1054  * OP_SUB: display SUB and proceed to EA
+00001968                          1055  *---------------------------------------------------------------------------*            
+00001968  43F9 00002A47           1056  OP_SUB_B    LEA     DISP_SUB_B,A1
+0000196E  103C 000E               1057              MOVE.B  #14,D0
+00001972  4E4F                    1058              TRAP    #15
+00001974  183C 0000               1059              MOVE.B  #0,D4
+00001978  4EF9 00001F54           1060              JMP     EA_GEN
+0000197E                          1061  
+0000197E  4E75                    1062              RTS
+00001980                          1063  
+00001980  43F9 00002A50           1064  OP_SUB_W    LEA     DISP_SUB_W,A1
+00001986  103C 000E               1065              MOVE.B  #14,D0
+0000198A  4E4F                    1066              TRAP    #15
+0000198C  183C 0001               1067              MOVE.B  #1,D4
+00001990  4EF9 00001F54           1068              JMP     EA_GEN
+00001996                          1069  
+00001996  4E75                    1070              RTS
+00001998                          1071  
+00001998  43F9 00002A59           1072  OP_SUB_L    LEA     DISP_SUB_L,A1
+0000199E  103C 000E               1073              MOVE.B  #14,D0
+000019A2  4E4F                    1074              TRAP    #15
+000019A4  183C 0002               1075              MOVE.B  #2,D4
+000019A8  4EF9 00001F54           1076              JMP     EA_GEN
+000019AE                          1077  
+000019AE  4E75                    1078              RTS
+000019B0                          1079  
+000019B0                          1080  *---------------------------------------------------------------------------*
+000019B0                          1081  * OP_SUBA: display SUBA
+000019B0                          1082  *---------------------------------------------------------------------------*  
+000019B0  43F9 00002A80           1083  OP_SUBA_W   LEA     DISP_SUBA_W,A1
+000019B6  103C 000E               1084              MOVE.B  #14,D0
+000019BA  4E4F                    1085              TRAP    #15
+000019BC  183C 0001               1086              MOVE.B  #1,D4
+000019C0  4E75                    1087              RTS
+000019C2                          1088  
+000019C2  43F9 00002A8A           1089  OP_SUBA_L   LEA     DISP_SUBA_L,A1
+000019C8  103C 000E               1090              MOVE.B  #14,D0
+000019CC  4E4F                    1091              TRAP    #15
+000019CE  183C 0002               1092              MOVE.B  #2,D4
+000019D2  4E75                    1093              RTS         
+000019D4                          1094  *---------------------------------------------------------------------------*
+000019D4                          1095  * OP1010 : unassigned
+000019D4                          1096  *---------------------------------------------------------------------------*           
+000019D4  4EF8 140A               1097  OP1010      JMP     OP_DATA
+000019D8                          1098              
+000019D8                          1099  *---------------------------------------------------------------------------*
+000019D8                          1100  * OP1011 : decode CMP/EOR/CMPA
+000019D8                          1101  *---------------------------------------------------------------------------*           
+000019D8  4280                    1102  OP1011      CLR.L   D0                
+000019DA  4281                    1103              CLR.L   D1            
+000019DC  4284                    1104              CLR.L   D4                   
+000019DE  227C 00000000           1105              MOVEA.L #0, A1               
+000019E4  2205                    1106              MOVE.L  D5,D1
+000019E6  EA99                    1107              ROR.L   #5,D1
+000019E8  0281 0000000E           1108              ANDI.L  #$E,D1
+000019EE  0C01 0000               1109              CMPI.B  #$0,D1
+000019F2  6700 0062               1110              BEQ     OP_CMP_B
+000019F6  0C01 0002               1111              CMPI.B  #$2,D1
+000019FA  6700 0072               1112              BEQ     OP_CMP_W
+000019FE  0C01 0004               1113              CMPI.B  #$4,D1
+00001A02  6700 0082               1114              BEQ     OP_CMP_L
+00001A06  0C01 0008               1115              CMPI.B  #$8,D1
+00001A0A  6700 0092               1116              BEQ     OP_EOR_B
+00001A0E  0C01 000A               1117              CMPI.B  #$A,D1
+00001A12  6700 009C               1118              BEQ     OP_EOR_W
+00001A16  0C01 000C               1119              CMPI.B  #$C,D1
+00001A1A  6700 00A6               1120              BEQ     OP_EOR_L  
+00001A1E  0C01 0006               1121              CMPI.B  #$6,D1
+00001A22  6700 000E               1122              BEQ     OP_CMPA_W
+00001A26  0C01 000E               1123              CMPI.B  #$E,D1
+00001A2A  6700 0018               1124              BEQ     OP_CMPA_L 
+00001A2E                          1125  
+00001A2E  4EF8 140A               1126              JMP     OP_DATA          
+00001A32                          1127  
+00001A32                          1128  *---------------------------------------------------------------------------*
+00001A32                          1129  * OP_CMPA: display CMPA 
+00001A32                          1130  *---------------------------------------------------------------------------
+00001A32  43F9 00002ACA           1131  OP_CMPA_W   LEA     DISP_CMPA_W,A1
+00001A38  103C 000E               1132              MOVE.B  #14,D0
+00001A3C  4E4F                    1133              TRAP    #15
+00001A3E  183C 0001               1134              MOVE.B  #1,D4
+00001A42  4E75                    1135              RTS
+00001A44                          1136  
+00001A44  43F9 00002AD4           1137  OP_CMPA_L   LEA     DISP_CMPA_L,A1
+00001A4A  103C 000E               1138              MOVE.B  #14,D0
+00001A4E  4E4F                    1139              TRAP    #15
+00001A50  183C 0002               1140              MOVE.B  #2,D4
+00001A54  4E75                    1141              RTS
+00001A56                          1142  
+00001A56                          1143  *---------------------------------------------------------------------------*
+00001A56                          1144  * OP_CMP: display CMP and proceed to EA
+00001A56                          1145  *---------------------------------------------------------------------------*  
+00001A56  43F9 00002AAF           1146  OP_CMP_B    LEA     DISP_CMP_B,A1
+00001A5C  103C 000E               1147              MOVE.B  #14,D0
+00001A60  4E4F                    1148              TRAP    #15
+00001A62  183C 0000               1149              MOVE.B  #0,D4
+00001A66  4EF9 00001F54           1150              JMP     EA_GEN
+00001A6C                          1151  
+00001A6C  4E75                    1152              RTS
+00001A6E                          1153              
+00001A6E  43F9 00002AB8           1154  OP_CMP_W    LEA     DISP_CMP_W,A1
+00001A74  103C 000E               1155              MOVE.B  #14,D0
+00001A78  4E4F                    1156              TRAP    #15
+00001A7A  183C 0001               1157              MOVE.B  #1,D4
+00001A7E  4EF9 00001F54           1158              JMP     EA_GEN
+00001A84                          1159  
+00001A84  4E75                    1160              RTS
+00001A86                          1161              
+00001A86  43F9 00002AC1           1162  OP_CMP_L    LEA     DISP_CMP_L,A1
+00001A8C  103C 000E               1163              MOVE.B  #14,D0
+00001A90  4E4F                    1164              TRAP    #15
+00001A92  183C 0002               1165              MOVE.B  #2,D4
+00001A96  4EF9 00001F54           1166              JMP     EA_GEN
+00001A9C                          1167  
+00001A9C  4E75                    1168              RTS
+00001A9E                          1169              
+00001A9E                          1170  *---------------------------------------------------------------------------*
+00001A9E                          1171  * OP_EOR: display EOR
+00001A9E                          1172  *---------------------------------------------------------------------------*  
+00001A9E  43F9 00002A94           1173  OP_EOR_B    LEA     DISP_EOR_B,A1
+00001AA4  103C 000E               1174              MOVE.B  #14,D0
+00001AA8  4E4F                    1175              TRAP    #15
+00001AAA  183C 0000               1176              MOVE.B  #0,D4
+00001AAE  4E75                    1177              RTS
+00001AB0                          1178              
+00001AB0  43F9 00002A9D           1179  OP_EOR_W    LEA     DISP_EOR_W,A1
+00001AB6  103C 000E               1180              MOVE.B  #14,D0
+00001ABA  4E4F                    1181              TRAP    #15
+00001ABC  183C 0001               1182              MOVE.B  #1,D4
+00001AC0  4E75                    1183              RTS
+00001AC2                          1184              
+00001AC2  43F9 00002AA6           1185  OP_EOR_L    LEA     DISP_EOR_L,A1
+00001AC8  103C 000E               1186              MOVE.B  #14,D0
+00001ACC  4E4F                    1187              TRAP    #15
+00001ACE  183C 0002               1188              MOVE.B  #2,D4
+00001AD2  4E75                    1189              RTS    
+00001AD4                          1190  
+00001AD4                          1191  *---------------------------------------------------------------------------*
+00001AD4                          1192  * OP1100: Decode and display MULS/AND and proceed to EA
+00001AD4                          1193  *---------------------------------------------------------------------------* 
+00001AD4  4280                    1194  OP1100      CLR.L   D0                 
+00001AD6  4281                    1195              CLR.L   D1    
+00001AD8  4284                    1196              CLR.L   D4                
+00001ADA  227C 00000000           1197              MOVEA.L #0, A1             
+00001AE0                          1198              
+00001AE0  2205                    1199              MOVE.L  D5,D1
+00001AE2  EA89                    1200              LSR.L   #5,D1
+00001AE4  0281 0000000E           1201              ANDI.L  #$E,D1
+00001AEA  0C41 000E               1202              CMPI.W  #$E,D1
+00001AEE  6700 0036               1203              BEQ     OP_MULS
+00001AF2  0C41 0000               1204              CMPI.W  #$0,D1
+00001AF6  6700 0042               1205              BEQ     OP_AND_B
+00001AFA  0C41 0002               1206              CMPI.W  #$2,D1
+00001AFE  6700 004C               1207              BEQ     OP_AND_W
+00001B02  0C41 0004               1208              CMPI.W  #$4,D1
+00001B06  6700 0056               1209              BEQ     OP_AND_L
+00001B0A  0C41 0008               1210              CMPI.W  #$8,D1
+00001B0E  6700 002A               1211              BEQ     OP_AND_B
+00001B12  0C41 000A               1212              CMPI.W  #$A,D1
+00001B16  6700 0034               1213              BEQ     OP_AND_W
+00001B1A  0C41 000C               1214              CMPI.W  #$C,D1
+00001B1E  6700 003E               1215              BEQ     OP_AND_L
+00001B22                          1216  
+00001B22  4EF8 140A               1217              JMP     OP_DATA
+00001B26                          1218  
+00001B26  43F9 00002ADE           1219  OP_MULS     LEA     DISP_MULS_W,A1
+00001B2C  103C 000E               1220              MOVE.B  #14,D0
+00001B30  4E4F                    1221              TRAP    #15
+00001B32  4EF9 00001F08           1222              JMP     EA_ARITH
+00001B38  4E75                    1223              RTS
+00001B3A                          1224              
+00001B3A                          1225  OP_AND_B    
+00001B3A  43F9 00002AE8           1226              LEA     DISP_AND_B,A1
+00001B40  103C 000E               1227              MOVE.B  #14,D0
+00001B44  4E4F                    1228              TRAP    #15
+00001B46  183C 0000               1229              MOVE.B  #0,D4
+00001B4A  4E75                    1230              RTS
+00001B4C                          1231  
+00001B4C                          1232  OP_AND_W
+00001B4C  43F9 00002AF1           1233              LEA     DISP_AND_W,A1
+00001B52  103C 000E               1234              MOVE.B  #14,D0
+00001B56  4E4F                    1235              TRAP    #15
+00001B58  183C 0001               1236              MOVE.B  #1,D4
+00001B5C  4E75                    1237              RTS
+00001B5E                          1238  
+00001B5E                          1239  OP_AND_L
+00001B5E  43F9 00002AFA           1240              LEA     DISP_AND_L,A1
+00001B64  103C 000E               1241              MOVE.B  #14,D0
+00001B68  4E4F                    1242              TRAP    #15
+00001B6A  183C 0002               1243              MOVE.B  #2,D4
+00001B6E  4E75                    1244              RTS
+00001B70                          1245  
+00001B70                          1246  *---------------------------------------------------------------------------*
+00001B70                          1247  * OP1101: Decode ADD/ADDA
+00001B70                          1248  *---------------------------------------------------------------------------* 
+00001B70  4280                    1249  OP1101      CLR.L   D0                  
+00001B72  4281                    1250              CLR.L   D1       
+00001B74  4284                    1251              CLR.L   D4                   
+00001B76  227C 00000000           1252              MOVEA.L #0, A1              
+00001B7C  2205                    1253              MOVE.L  D5,D1
+00001B7E  EA99                    1254              ROR.L   #5,D1
+00001B80  0281 0000000E           1255              ANDI.L  #$E,D1
+00001B86  0C01 0000               1256              CMPI.B  #$0,D1
+00001B8A  6700 003E               1257              BEQ     OP_ADD_B
+00001B8E  0C01 0002               1258              CMPI.B  #$2,D1
+00001B92  6700 004E               1259              BEQ     OP_ADD_W
+00001B96  0C01 0004               1260              CMPI.B  #$4,D1
+00001B9A  6700 005E               1261              BEQ     OP_ADD_L
+00001B9E  0C01 0008               1262              CMPI.B  #$8,D1
+00001BA2  6700 0026               1263              BEQ     OP_ADD_B
+00001BA6  0C01 000A               1264              CMPI.B  #$A,D1
+00001BAA  6700 0036               1265              BEQ     OP_ADD_W
+00001BAE  0C01 000C               1266              CMPI.B  #$C,D1
+00001BB2  6700 0046               1267              BEQ     OP_ADD_L  
+00001BB6                          1268              
+00001BB6  0C01 0006               1269              CMPI.B  #$6,D1
+00001BBA  6700 0056               1270              BEQ     OP_ADDA_W
+00001BBE  0C01 000E               1271              CMPI.B  #$E,D1
+00001BC2  6700 0066               1272              BEQ     OP_ADDA_L 
+00001BC6                          1273  
+00001BC6  4EF8 140A               1274              JMP     OP_DATA  
+00001BCA                          1275            
+00001BCA                          1276  *---------------------------------------------------------------------------*
+00001BCA                          1277  * OP_ADD: display ADD and proceed to EA
+00001BCA                          1278  *---------------------------------------------------------------------------*  
+00001BCA  43F9 00002B03           1279  OP_ADD_B    LEA     DISP_ADD_B,A1
+00001BD0  103C 000E               1280              MOVE.B  #14,D0
+00001BD4  4E4F                    1281              TRAP    #15
+00001BD6  183C 0000               1282              MOVE.B  #0,D4
+00001BDA  4EF9 00001F54           1283              JMP     EA_GEN
+00001BE0                          1284  
+00001BE0  4E75                    1285              RTS
+00001BE2                          1286  
+00001BE2  43F9 00002B0C           1287  OP_ADD_W    LEA     DISP_ADD_W,A1
+00001BE8  103C 000E               1288              MOVE.B  #14,D0
+00001BEC  4E4F                    1289              TRAP    #15
+00001BEE  183C 0001               1290              MOVE.B  #1,D4
+00001BF2  4EF9 00001F54           1291              JMP     EA_GEN
+00001BF8                          1292  
+00001BF8  4E75                    1293              RTS
+00001BFA                          1294  
+00001BFA  43F9 00002B15           1295  OP_ADD_L    LEA     DISP_ADD_L,A1
+00001C00  103C 000E               1296              MOVE.B  #14,D0
+00001C04  4E4F                    1297              TRAP    #15
+00001C06  183C 0002               1298              MOVE.B  #2,D4
+00001C0A  4EF9 00001F54           1299              JMP     EA_GEN
+00001C10                          1300  
+00001C10  4E75                    1301              RTS
+00001C12                          1302  
+00001C12                          1303  *---------------------------------------------------------------------------*
+00001C12                          1304  * OP_ADDA: display ADDA and proceed to EA
+00001C12                          1305  *---------------------------------------------------------------------------*  
+00001C12  43F9 00002B1E           1306  OP_ADDA_W   LEA     DISP_ADDA_W,A1
+00001C18  103C 000E               1307              MOVE.B  #14,D0
+00001C1C  4E4F                    1308              TRAP    #15
+00001C1E  183C 0001               1309              MOVE.B  #1,D4
+00001C22  4EF9 00001F54           1310              JMP     EA_GEN
+00001C28                          1311  
+00001C28  4E75                    1312              RTS
+00001C2A                          1313  
+00001C2A  43F9 00002B28           1314  OP_ADDA_L   LEA     DISP_ADDA_L,A1
+00001C30  103C 000E               1315              MOVE.B  #14,D0
+00001C34  4E4F                    1316              TRAP    #15
+00001C36  183C 0002               1317              MOVE.B  #2,D4
+00001C3A  4EF9 00001F54           1318              JMP     EA_GEN
+00001C40                          1319  
+00001C40  4E75                    1320              RTS
+00001C42                          1321              
+00001C42                          1322  *---------------------------------------------------------------------------*
+00001C42                          1323  * OP1110: LSR/LSL/ASR/ASL/ROL/ROR
+00001C42                          1324  *---------------------------------------------------------------------------* 
+00001C42  4280                    1325  OP1110      CLR.L   D0                  
+00001C44  4281                    1326              CLR.L   D1   
+00001C46  4284                    1327              CLR.L   D4                   
+00001C48  227C 00000000           1328              MOVEA.L #0, A1                 
+00001C4E  2205                    1329              MOVE.L  D5,D1
+00001C50                          1330              
+00001C50                          1331              * check for LSX
+00001C50  E699                    1332              ROR.L   #3,D1
+00001C52  0281 00000001           1333              ANDI.L  #$1,D1
+00001C58  0C01 0001               1334              CMPI.B  #1,D1
+00001C5C  6700 002E               1335              BEQ     OP_LSX
+00001C60                          1336              
+00001C60                          1337              * reset D1 and check for ASX
+00001C60  4281                    1338              CLR.L   D1
+00001C62  2205                    1339              MOVE.L  D5,D1
+00001C64  E699                    1340              ROR.L   #3,D1
+00001C66  0281 00000001           1341              ANDI.L  #$1,D1
+00001C6C  0C01 0000               1342              CMPI.B  #0,D1
+00001C70  6700 0032               1343              BEQ     OP_ASX
+00001C74                          1344  
+00001C74                          1345              * reset D1 and check for ROX
+00001C74  4281                    1346              CLR.L   D1
+00001C76  2205                    1347              MOVE.L  D5,D1
+00001C78  E699                    1348              ROR.L   #3,D1
+00001C7A  0281 00000001           1349              ANDI.L  #$1,D1
+00001C80  0C01 0003               1350              CMPI.B  #3,D1
+00001C84  6700 0036               1351              BEQ     OP_ROX
+00001C88                          1352              
+00001C88  4EF8 140A               1353              JMP     OP_DATA
+00001C8C                          1354  
+00001C8C                          1355  *---------------------------------------------------------------------------*
+00001C8C                          1356  * OP_LSX: process LSR/LSL
+00001C8C                          1357  *---------------------------------------------------------------------------*            
+00001C8C  EA99                    1358  OP_LSX      ROR.L   #5,D1
+00001C8E  0281 00000001           1359              ANDI.L  #$1,D1
+00001C94  0C01 0000               1360              CMPI.B  #0,D1
+00001C98  6700 003A               1361              BEQ     OP_LSR
+00001C9C  0C01 0001               1362              CMPI.B  #1,D1
+00001CA0  6700 008C               1363              BEQ     OP_LSL
+00001CA4                          1364              
+00001CA4                          1365  *---------------------------------------------------------------------------*
+00001CA4                          1366  * OP_ASX: process ASR/ASL
+00001CA4                          1367  *---------------------------------------------------------------------------*  
+00001CA4  EA99                    1368  OP_ASX      ROR.L   #5,D1
+00001CA6  0281 00000001           1369              ANDI.L  #$1,D1
+00001CAC  0C01 0000               1370              CMPI.B  #0,D1
+00001CB0  6700 00D6               1371              BEQ     OP_ASR
+00001CB4  0C01 0001               1372              CMPI.B  #1,D1
+00001CB8  6700 0128               1373              BEQ     OP_ASL
+00001CBC                          1374              
+00001CBC                          1375  *---------------------------------------------------------------------------*
+00001CBC                          1376  * OP_ROX: process ROR/ROL
+00001CBC                          1377  *---------------------------------------------------------------------------*  
+00001CBC  EA99                    1378  OP_ROX      ROR.L   #5,D1
+00001CBE  0281 00000001           1379              ANDI.L  #$1,D1
+00001CC4  0C01 0000               1380              CMPI.B  #0,D1
+00001CC8  6700 0172               1381              BEQ     OP_ROR
+00001CCC  0C01 0001               1382              CMPI.B  #1,D1
+00001CD0  6700 01C4               1383              BEQ     OP_ROL
+00001CD4                          1384  
+00001CD4                          1385  *---------------------------------------------------------------------------*
+00001CD4                          1386  * OP_LSR: decode and display LSR
+00001CD4                          1387  *---------------------------------------------------------------------------*        
+00001CD4  E599                    1388  OP_LSR      ROL.L   #2,D1
+00001CD6  0281 00000003           1389              ANDI.L  #$3,D1
+00001CDC  0C01 0000               1390              CMPI.B  #0,D1
+00001CE0  6700 0016               1391              BEQ     OP_LSR_B
+00001CE4  0C01 0001               1392              CMPI.B  #$1,D1
+00001CE8  6700 0032               1393              BEQ     OP_LSR_W
+00001CEC  0C01 0002               1394              CMPI.B  #$2,D1
+00001CF0  6700 0018               1395              BEQ     OP_LSR_L
+00001CF4                          1396              
+00001CF4  4EF8 140A               1397              JMP     OP_DATA
+00001CF8                          1398  
+00001CF8  43F9 00002B32           1399  OP_LSR_B    LEA     DISP_LSR_B,A1
+00001CFE  103C 000E               1400              MOVE.B  #14,D0
+00001D02  4E4F                    1401              TRAP    #15
+00001D04  183C 0000               1402              MOVE.B  #0,D4
+00001D08  4E75                    1403              RTS
+00001D0A                          1404  
+00001D0A  43F9 00002B56           1405  OP_LSR_L    LEA     DISP_LSR_L,A1
+00001D10  103C 000E               1406              MOVE.B  #14,D0
+00001D14  4E4F                    1407              TRAP    #15
+00001D16  183C 0002               1408              MOVE.B  #2,D4
+00001D1A  4E75                    1409              RTS
+00001D1C                          1410  
+00001D1C  43F9 00002B44           1411  OP_LSR_W    LEA     DISP_LSR_W,A1
+00001D22  103C 000E               1412              MOVE.B  #14,D0
+00001D26  4E4F                    1413              TRAP    #15
+00001D28  183C 0001               1414              MOVE.B  #1,D4
+00001D2C  4E75                    1415              RTS
+00001D2E                          1416   
+00001D2E                          1417  *---------------------------------------------------------------------------*
+00001D2E                          1418  * OP_LSL: decode and display LSL
+00001D2E                          1419  *---------------------------------------------------------------------------*             
+00001D2E  E599                    1420  OP_LSL      ROL.L   #2,D1
+00001D30  0281 00000003           1421              ANDI.L  #$3,D1
+00001D36  0C01 0000               1422              CMPI.B  #0,D1
+00001D3A  6700 0016               1423              BEQ     OP_LSL_B
+00001D3E  0C01 0001               1424              CMPI.B  #$1,D1
+00001D42  6700 0032               1425              BEQ     OP_LSL_W
+00001D46  0C01 0002               1426              CMPI.B  #$2,D1
+00001D4A  6700 0018               1427              BEQ     OP_LSL_L
+00001D4E                          1428              
+00001D4E  4EF8 140A               1429              JMP OP_DATA
+00001D52                          1430  
+00001D52  43F9 00002B3B           1431  OP_LSL_B    LEA     DISP_LSL_B,A1
+00001D58  103C 000E               1432              MOVE.B  #14,D0
+00001D5C  4E4F                    1433              TRAP    #15
+00001D5E  183C 0000               1434              MOVE.B  #0,D4
+00001D62  4E75                    1435              RTS
+00001D64                          1436  
+00001D64  43F9 00002B5F           1437  OP_LSL_L    LEA     DISP_LSL_L,A1
+00001D6A  103C 000E               1438              MOVE.B  #14,D0
+00001D6E  4E4F                    1439              TRAP    #15
+00001D70  183C 0002               1440              MOVE.B  #2,D4
+00001D74  4E75                    1441              RTS
+00001D76                          1442  
+00001D76  43F9 00002B4D           1443  OP_LSL_W    LEA     DISP_LSL_W,A1
+00001D7C  103C 000E               1444              MOVE.B  #14,D0
+00001D80  4E4F                    1445              TRAP    #15
+00001D82  183C 0001               1446              MOVE.B  #1,D4
+00001D86  4E75                    1447              RTS
+00001D88                          1448   
+00001D88                          1449  *---------------------------------------------------------------------------*
+00001D88                          1450  * OP_ASR: decode and display ASR
+00001D88                          1451  *---------------------------------------------------------------------------*             
+00001D88  E599                    1452  OP_ASR      ROL.L   #2,D1
+00001D8A  0281 00000003           1453              ANDI.L  #$3,D1
+00001D90  0C01 0000               1454              CMPI.B  #0,D1
+00001D94  6700 0016               1455              BEQ     OP_ASR_B
+00001D98  0C01 0001               1456              CMPI.B  #$1,D1
+00001D9C  6700 0032               1457              BEQ     OP_ASR_W
+00001DA0  0C01 0002               1458              CMPI.B  #$2,D1
+00001DA4  6700 0018               1459              BEQ     OP_ASR_L
+00001DA8                          1460              
+00001DA8  4EF8 140A               1461              JMP OP_DATA
+00001DAC                          1462  
+00001DAC  43F9 00002B68           1463  OP_ASR_B    LEA     DISP_ASR_B,A1
+00001DB2  103C 000E               1464              MOVE.B  #14,D0
+00001DB6  4E4F                    1465              TRAP    #15
+00001DB8  183C 0000               1466              MOVE.B  #0,D4
+00001DBC  4E75                    1467              RTS
+00001DBE                          1468  
+00001DBE  43F9 00002B8C           1469  OP_ASR_L    LEA     DISP_ASR_L,A1
+00001DC4  103C 000E               1470              MOVE.B  #14,D0
+00001DC8  4E4F                    1471              TRAP    #15
+00001DCA  183C 0002               1472              MOVE.B  #2,D4
+00001DCE  4E75                    1473              RTS
+00001DD0                          1474  
+00001DD0  43F9 00002B7A           1475  OP_ASR_W    LEA     DISP_ASR_W,A1
+00001DD6  103C 000E               1476              MOVE.B  #14,D0
+00001DDA  4E4F                    1477              TRAP    #15
+00001DDC  183C 0001               1478              MOVE.B  #1,D4
+00001DE0  4E75                    1479              RTS
+00001DE2                          1480       
+00001DE2                          1481  *---------------------------------------------------------------------------*
+00001DE2                          1482  * OP_ASL: decode and display ASL
+00001DE2                          1483  *---------------------------------------------------------------------------*         
+00001DE2  E599                    1484  OP_ASL      ROL.L   #2,D1
+00001DE4  0281 00000003           1485              ANDI.L  #$3,D1
+00001DEA  0C01 0000               1486              CMPI.B  #0,D1
+00001DEE  6700 0016               1487              BEQ     OP_ASL_B
+00001DF2  0C01 0001               1488              CMPI.B  #$1,D1
+00001DF6  6700 0032               1489              BEQ     OP_ASL_W
+00001DFA  0C01 0002               1490              CMPI.B  #$2,D1
+00001DFE  6700 0018               1491              BEQ     OP_ASL_L
+00001E02                          1492              
+00001E02  4EF8 140A               1493              JMP OP_DATA
+00001E06                          1494  
+00001E06  43F9 00002B71           1495  OP_ASL_B    LEA     DISP_ASL_B,A1
+00001E0C  103C 000E               1496              MOVE.B  #14,D0
+00001E10  4E4F                    1497              TRAP    #15
+00001E12  183C 0000               1498              MOVE.B  #0,D4
+00001E16  4E75                    1499              RTS
+00001E18                          1500  
+00001E18  43F9 00002B95           1501  OP_ASL_L    LEA     DISP_ASL_L,A1
+00001E1E  103C 000E               1502              MOVE.B  #14,D0
+00001E22  4E4F                    1503              TRAP    #15
+00001E24  183C 0002               1504              MOVE.B  #2,D4
+00001E28  4E75                    1505              RTS
+00001E2A                          1506  
+00001E2A  43F9 00002B83           1507  OP_ASL_W    LEA     DISP_ASL_W,A1
+00001E30  103C 000E               1508              MOVE.B  #14,D0
+00001E34  4E4F                    1509              TRAP    #15
+00001E36  183C 0001               1510              MOVE.B  #1,D4
+00001E3A  4E75                    1511              RTS
+00001E3C                          1512   
+00001E3C                          1513  *---------------------------------------------------------------------------*
+00001E3C                          1514  * OP_ROR: decode and display ROR
+00001E3C                          1515  *---------------------------------------------------------------------------*             
+00001E3C  E599                    1516  OP_ROR      ROL.L   #2,D1
+00001E3E  0281 00000003           1517              ANDI.L  #$3,D1
+00001E44  0C01 0000               1518              CMPI.B  #0,D1
+00001E48  6700 0016               1519              BEQ     OP_ROR_B
+00001E4C  0C01 0001               1520              CMPI.B  #$1,D1
+00001E50  6700 0032               1521              BEQ     OP_ROR_W
+00001E54  0C01 0002               1522              CMPI.B  #$2,D1
+00001E58  6700 0018               1523              BEQ     OP_ROR_L
+00001E5C                          1524              
+00001E5C  4EF8 140A               1525              JMP OP_DATA
+00001E60                          1526  
+00001E60  43F9 00002B9E           1527  OP_ROR_B    LEA     DISP_ROR_B,A1
+00001E66  103C 000E               1528              MOVE.B  #14,D0
+00001E6A  4E4F                    1529              TRAP    #15
+00001E6C  183C 0000               1530              MOVE.B  #0,D4
+00001E70  4E75                    1531              RTS
+00001E72                          1532  
+00001E72  43F9 00002BC2           1533  OP_ROR_L    LEA     DISP_ROR_L,A1
+00001E78  103C 000E               1534              MOVE.B  #14,D0
+00001E7C  4E4F                    1535              TRAP    #15
+00001E7E  183C 0002               1536              MOVE.B  #2,D4
+00001E82  4E75                    1537              RTS
+00001E84                          1538  
+00001E84  43F9 00002BB0           1539  OP_ROR_W    LEA     DISP_ROR_W,A1
+00001E8A  103C 000E               1540              MOVE.B  #14,D0
+00001E8E  4E4F                    1541              TRAP    #15
+00001E90  183C 0001               1542              MOVE.B  #1,D4
+00001E94  4E75                    1543              RTS
+00001E96                          1544  
+00001E96                          1545  *---------------------------------------------------------------------------*
+00001E96                          1546  * OP_ROL: decode and display ROL
+00001E96                          1547  *---------------------------------------------------------------------------*             
+00001E96  E599                    1548  OP_ROL      ROL.L   #2,D1
+00001E98  0281 00000003           1549              ANDI.L  #$3,D1
+00001E9E  0C01 0000               1550              CMPI.B  #0,D1
+00001EA2  6700 0016               1551              BEQ     OP_ROL_B
+00001EA6  0C01 0001               1552              CMPI.B  #$1,D1
+00001EAA  6700 0032               1553              BEQ     OP_ROL_W
+00001EAE  0C01 0002               1554              CMPI.B  #$2,D1
+00001EB2  6700 0018               1555              BEQ     OP_ROL_L
+00001EB6                          1556              
+00001EB6  4EF8 140A               1557              JMP OP_DATA
+00001EBA                          1558  
+00001EBA                          1559  
+00001EBA  43F9 00002BA7           1560  OP_ROL_B    LEA     DISP_ROL_B,A1
+00001EC0  103C 000E               1561              MOVE.B  #14,D0
+00001EC4  4E4F                    1562              TRAP    #15
+00001EC6  183C 0000               1563              MOVE.B  #0,D4
+00001ECA  4E75                    1564              RTS
+00001ECC                          1565  
+00001ECC  43F9 00002BCB           1566  OP_ROL_L    LEA     DISP_ROL_L,A1
+00001ED2  103C 000E               1567              MOVE.B  #14,D0
+00001ED6  4E4F                    1568              TRAP    #15
+00001ED8  183C 0002               1569              MOVE.B  #2,D4
+00001EDC  4E75                    1570              RTS
+00001EDE                          1571  
+00001EDE  43F9 00002BB9           1572  OP_ROL_W    LEA     DISP_ROL_W,A1
+00001EE4  103C 000E               1573              MOVE.B  #14,D0
+00001EE8  4E4F                    1574              TRAP    #15
+00001EEA  183C 0001               1575              MOVE.B  #1,D4
+00001EEE  4E75                    1576              RTS
+00001EF0                          1577              
+00001EF0                          1578  *---------------------------------------------------------------------------*
+00001EF0                          1579  * OP1111 : Special reserved
+00001EF0                          1580  *---------------------------------------------------------------------------*           
+00001EF0  4EF8 140A               1581  OP1111      JMP     OP_DATA
+00001EF4                          1582  
+00001EF4                          1583  *---------------------------------------------------------------------------*
+00001EF4                          1584  * EA_NOSRC: decode and display effective addresses for NEG/JSR
+00001EF4                          1585  *---------------------------------------------------------------------------*
+00001EF4                          1586  EA_NOSRC    
+00001EF4  4EB9 00001FB2           1587              JSR     SRC_MODE
+00001EFA  43F9 00002898           1588              LEA     ENDLINE_M,A1
+00001F00  103C 000E               1589              MOVE.B  #14,D0
+00001F04  4E4F                    1590              TRAP    #15
+00001F06  4E75                    1591              RTS
+00001F08                          1592              
+00001F08                          1593  *---------------------------------------------------------------------------*
+00001F08                          1594  * EA_ARITH: decode and display effective addresses for DIVS/MULS
+00001F08                          1595  *---------------------------------------------------------------------------*
+00001F08                          1596  EA_ARITH
+00001F08  4EB9 00001FB2           1597              JSR     SRC_MODE
+00001F0E  43F9 00002C1D           1598              LEA     DISP_D,A1
+00001F14  103C 000E               1599              MOVE.B  #14,D0
+00001F18  4E4F                    1600              TRAP    #15
+00001F1A  4EB9 0000223E           1601              JSR     DEST_REGISTER
+00001F20  43F9 00002898           1602              LEA     ENDLINE_M,A1
+00001F26  103C 000E               1603              MOVE.B  #14,D0
+00001F2A  4E4F                    1604              TRAP    #15
+00001F2C  4E75                    1605              RTS
+00001F2E                          1606              
+00001F2E                          1607  *---------------------------------------------------------------------------*
+00001F2E                          1608  * EA_MOVEA: decode and display effective addresses for MOVEA/LEA
+00001F2E                          1609  *---------------------------------------------------------------------------*
+00001F2E                          1610  EA_MOVEA
+00001F2E  4EB9 00001FB2           1611              JSR     SRC_MODE
+00001F34  43F9 00002C2E           1612              LEA     DISP_AOP,A1
+00001F3A  103C 000E               1613              MOVE.B  #14,D0
+00001F3E  4E4F                    1614              TRAP    #15
+00001F40  4EB9 0000223E           1615              JSR     DEST_REGISTER
+00001F46  43F9 00002C2C           1616              LEA     DISP_CP,A1
+00001F4C  103C 000D               1617              MOVE.B  #13,D0
+00001F50  4E4F                    1618              TRAP    #15
+00001F52  4E75                    1619              RTS
+00001F54                          1620              
+00001F54                          1621  *---------------------------------------------------------------------------*
+00001F54                          1622  * EA_GEN: decode and display effective addresses for MOVE
+00001F54                          1623  *---------------------------------------------------------------------------*
+00001F54                          1624  EA_GEN          
+00001F54                          1625              * retrieve/display source mode/register
+00001F54  4EB9 00001FB2           1626              JSR     SRC_MODE
+00001F5A                          1627              
+00001F5A                          1628              * retrieve/display destination mode/register
+00001F5A  4EB9 00001F6E           1629              JSR     DEST_MODE
+00001F60                          1630              
+00001F60  43F9 00002898           1631              LEA     ENDLINE_M,A1
+00001F66  103C 000E               1632              MOVE.B  #14,D0
+00001F6A  4E4F                    1633              TRAP    #15
+00001F6C                          1634              
+00001F6C  4E75                    1635              RTS
+00001F6E                          1636  
+00001F6E                          1637  *---------------------------------------------------------------------------*
+00001F6E                          1638  * DEST_MODE: decode and display destination mode (bit 8 - 6)
+00001F6E                          1639  *---------------------------------------------------------------------------*           
+00001F6E                          1640  DEST_MODE   
+00001F6E                          1641              * clear registers to store temp data
+00001F6E  4280                    1642              CLR.L   D0                      
+00001F70  4281                    1643              CLR.L   D1                      
+00001F72  207C 00000000           1644              MOVEA.L #0, A0                  
+00001F78  227C 00000000           1645              MOVEA.L #0, A1                  
+00001F7E  2205                    1646              MOVE.L  D5,D1
+00001F80  EC89                    1647              LSR.L   #6,D1
+00001F82  0281 00000007           1648              ANDI.L  #$7,D1
+00001F88  0C01 0000               1649              CMPI.B  #0,D1   * Dn
+00001F8C  6700 0082               1650              BEQ     D_MODE000
+00001F90  0C01 0002               1651              CMPI.B  #2,D1   * (An)
+00001F94  6700 00C2               1652              BEQ     D_MODE010
+00001F98  0C01 0003               1653              CMPI.B  #3,D1   * (An)+
+00001F9C  6700 011A               1654              BEQ     D_MODE011
+00001FA0  0C01 0004               1655              CMPI.B  #4,D1   * -(An)
+00001FA4  6700 0132               1656              BEQ     D_MODE100
+00001FA8  0C01 0007               1657              CMPI.B  #7,D1  * abs
+00001FAC  6700 017C               1658              BEQ     D_MODE111 
+00001FB0  4E75                    1659              RTS
+00001FB2                          1660  
+00001FB2                          1661  *---------------------------------------------------------------------------*
+00001FB2                          1662  * SRC_MODE: decode and display source mode (bit 5 - 3)
+00001FB2                          1663  *---------------------------------------------------------------------------*  
+00001FB2                          1664  SRC_MODE    
+00001FB2                          1665              * clear registers to store temp data
+00001FB2  4280                    1666              CLR.L   D0                      
+00001FB4  4281                    1667              CLR.L   D1                      
+00001FB6  207C 00000000           1668              MOVEA.L #0, A0                  
+00001FBC  227C 00000000           1669              MOVEA.L #0, A1                  
+00001FC2  2205                    1670              MOVE.L  D5,D1
+00001FC4  E489                    1671              LSR.L   #2,D1
+00001FC6  0281 0000000E           1672              ANDI.L  #$E,D1
+00001FCC                          1673              
+00001FCC  0C01 0000               1674              CMPI.B  #0,D1   * Dn
+00001FD0  6700 002A               1675              BEQ     MODE000
+00001FD4  0C01 0002               1676              CMPI.B  #2,D1   * An 
+00001FD8  6700 004A               1677              BEQ     MODE001
+00001FDC  0C01 0004               1678              CMPI.B  #4,D1   * (An)
+00001FE0  6700 0056               1679              BEQ     MODE010
+00001FE4  0C01 0006               1680              CMPI.B  #6,D1   * (An)+
+00001FE8  6700 008E               1681              BEQ     MODE011
+00001FEC  0C01 0008               1682              CMPI.B  #8,D1   * -(An)
+00001FF0  6700 00A6               1683              BEQ     MODE100
+00001FF4  0C01 000F               1684              CMPI.B  #15,D1  * abs/immediate
+00001FF8  6700 00FE               1685              BEQ     MODE111 
+00001FFC                          1686        
+00001FFC                          1687  *---------------------------------------------------------------------------*
+00001FFC                          1688  * MODE000: decode and display source mode Dn
+00001FFC                          1689  *---------------------------------------------------------------------------*           
+00001FFC                          1690  MODE000     *Dn
+00001FFC  43F9 00002C1D           1691              LEA     DISP_D,A1
+00002002  103C 000E               1692              MOVE.B  #14,D0
+00002006  4E4F                    1693              TRAP    #15
+00002008  4EB9 0000229A           1694              JSR     SRC_REGISTER
+0000200E  4E75                    1695              RTS
+00002010                          1696  
+00002010                          1697  *---------------------------------------------------------------------------*
+00002010                          1698  * D_MODE000: decode and display dest mode Dn
+00002010                          1699  *---------------------------------------------------------------------------*
+00002010                          1700  D_MODE000     *Dn
+00002010  43F9 00002C1D           1701              LEA     DISP_D,A1
+00002016  103C 000E               1702              MOVE.B  #14,D0
+0000201A  4E4F                    1703              TRAP    #15
+0000201C  4EB9 0000223E           1704              JSR     DEST_REGISTER
+00002022  4E75                    1705              RTS
+00002024                          1706  
+00002024                          1707  *---------------------------------------------------------------------------*
+00002024                          1708  * MODE001: decode and display source mode An
+00002024                          1709  *---------------------------------------------------------------------------* 
+00002024                          1710  MODE001 *An
+00002024  43F9 00002C22           1711              LEA     DISP_A,A1
+0000202A  103C 000E               1712              MOVE.B  #14,D0
+0000202E  4E4F                    1713              TRAP    #15
+00002030  4EB9 0000229A           1714              JSR     SRC_REGISTER
+00002036                          1715          
+00002036  4E75                    1716              RTS
+00002038                          1717  
+00002038                          1718  *---------------------------------------------------------------------------*
+00002038                          1719  * MODE010: decode and display source mode (An)
+00002038                          1720  *---------------------------------------------------------------------------*    
+00002038                          1721  MODE010 *(An)
+00002038  43F9 00002C2E           1722              LEA     DISP_AOP,A1  *display (A
+0000203E  103C 000E               1723              MOVE.B  #14,D0
+00002042  4E4F                    1724              TRAP    #15
+00002044                          1725  
+00002044  4EB9 0000229A           1726              JSR     SRC_REGISTER * display register
+0000204A                          1727  
+0000204A  43F9 00002C2C           1728              LEA     DISP_CP,A1   *display )
+00002050  103C 000E               1729              MOVE.B  #14,D0
+00002054  4E4F                    1730              TRAP    #15
+00002056                          1731              
+00002056  4E75                    1732              RTS
+00002058                          1733  
+00002058                          1734  *---------------------------------------------------------------------------*
+00002058                          1735  * D_MODE010: decode and display dest mode (An)
+00002058                          1736  *---------------------------------------------------------------------------*
+00002058                          1737  D_MODE010 *(An)
+00002058  43F9 00002C2E           1738              LEA     DISP_AOP,A1  *display (A
+0000205E  103C 000E               1739              MOVE.B  #14,D0
+00002062  4E4F                    1740              TRAP    #15
+00002064                          1741     
+00002064  4EB9 0000223E           1742              JSR     DEST_REGISTER * display register
+0000206A                          1743  
+0000206A  43F9 00002C2C           1744              LEA     DISP_CP,A1   *display )
+00002070  103C 000E               1745              MOVE.B  #14,D0
+00002074  4E4F                    1746              TRAP    #15
+00002076                          1747              
+00002076  4E75                    1748              RTS
+00002078                          1749  
+00002078                          1750  *---------------------------------------------------------------------------*
+00002078                          1751  * MODE011: decode and display source mode (An)+
+00002078                          1752  *---------------------------------------------------------------------------*
+00002078                          1753  MODE011 *(An)+
+00002078  43F9 00002C2E           1754              LEA     DISP_AOP,A1      *display (A
+0000207E  103C 000E               1755              MOVE.B  #14,D0
+00002082  4E4F                    1756              TRAP    #15
+00002084                          1757              
+00002084  4EB9 0000229A           1758              JSR     SRC_REGISTER    * display register
+0000208A                          1759  
+0000208A  43F9 00002C3B           1760              LEA     DISP_POST,A1    *display )+
+00002090  103C 000E               1761              MOVE.B  #14,D0
+00002094  4E4F                    1762              TRAP    #15
+00002096                          1763              
+00002096  4E75                    1764              RTS
+00002098                          1765              
+00002098                          1766  *---------------------------------------------------------------------------*
+00002098                          1767  * MODE100: decode and display source mode -(An)
+00002098                          1768  *---------------------------------------------------------------------------*
+00002098                          1769  MODE100 *-(An)
+00002098  43F9 00002C34           1770              LEA     DISP_PRE,A1    *display -(A
+0000209E  103C 000E               1771              MOVE.B  #14,D0
+000020A2  4E4F                    1772              TRAP    #15
+000020A4                          1773  
+000020A4  4EB9 0000229A           1774              JSR     SRC_REGISTER    *display register
+000020AA                          1775  
+000020AA  43F9 00002C2C           1776              LEA     DISP_CP,A1   *display )
+000020B0  103C 000E               1777              MOVE.B  #14,D0
+000020B4  4E4F                    1778              TRAP    #15
+000020B6                          1779              
+000020B6  4E75                    1780              RTS
+000020B8                          1781  
+000020B8                          1782  *---------------------------------------------------------------------------*
+000020B8                          1783  * D_MODE011: decode and display dest mode (An)+
+000020B8                          1784  *---------------------------------------------------------------------------*
+000020B8                          1785  D_MODE011 *(An)+
+000020B8  43F9 00002C2E           1786              LEA     DISP_AOP,A1      *display (A
+000020BE  103C 000E               1787              MOVE.B  #14,D0
+000020C2  4E4F                    1788              TRAP    #15
+000020C4                          1789  
+000020C4  4EB9 0000223E           1790              JSR     DEST_REGISTER    * display register
+000020CA                          1791  
+000020CA  43F9 00002C3B           1792              LEA     DISP_POST,A1    *display )+
+000020D0  103C 000E               1793              MOVE.B  #14,D0
+000020D4  4E4F                    1794              TRAP    #15
+000020D6                          1795              
+000020D6  4E75                    1796              RTS
+000020D8                          1797              
+000020D8                          1798  *---------------------------------------------------------------------------*
+000020D8                          1799  * D_MODE100: decode and display dest mode -(An)
+000020D8                          1800  *---------------------------------------------------------------------------*            
+000020D8                          1801  D_MODE100 *-(An)
+000020D8  43F9 00002C34           1802              LEA     DISP_PRE,A1    *display -(A
+000020DE  103C 000E               1803              MOVE.B  #14,D0
+000020E2  4E4F                    1804              TRAP    #15
+000020E4                          1805              
+000020E4  4EB9 0000223E           1806              JSR     DEST_REGISTER    *display register
+000020EA                          1807  
+000020EA  43F9 00002C2C           1808              LEA     DISP_CP,A1   *display )
+000020F0  103C 000E               1809              MOVE.B  #14,D0
+000020F4  4E4F                    1810              TRAP    #15
+000020F6                          1811              
+000020F6  4E75                    1812              RTS
+000020F8                          1813  
+000020F8                          1814  *---------------------------------------------------------------------------*
+000020F8                          1815  * MODE111: decode and display source mode absolute/immediate
+000020F8                          1816  *---------------------------------------------------------------------------*
+000020F8                          1817  MODE111     * abs/immediate
+000020F8                          1818              * clear registers to store temp data
+000020F8  4280                    1819              CLR.L   D0                      
+000020FA  4281                    1820              CLR.L   D1                      
+000020FC  207C 00000000           1821              MOVEA.L #0, A0                  
+00002102  227C 00000000           1822              MOVEA.L #0, A1                  
+00002108  2205                    1823              MOVE.L  D5,D1
+0000210A                          1824              
+0000210A                          1825              * retrieve source register for MODE 111
+0000210A  E389                    1826              LSL.L   #1,D1   * shift the bits to left by 1
+0000210C  0281 0000000E           1827              ANDI.L  #$E,D1  * mask the first 4 bits 
+00002112  0C01 0000               1828              CMPI.B  #0, D1  * if it's 0000, absolute word address
+00002116  6700 003E               1829              BEQ     WORDMODE
+0000211A  0C01 0002               1830              CMPI.B  #2, D1  * if it's 0010, absolute long address
+0000211E  6700 0062               1831              BEQ     LONGMODE
+00002122  0C01 0008               1832              CMPI.B  #8, D1  * if it's 1000, immediate data
+00002126  6700 0086               1833              BEQ     IMMEDIATE
+0000212A                          1834       
+0000212A                          1835  *---------------------------------------------------------------------------*
+0000212A                          1836  * D_MODE111: decode and display dest mode absolute/immediate
+0000212A                          1837  *---------------------------------------------------------------------------*           
+0000212A                          1838  D_MODE111   * abs
+0000212A                          1839              * clear registers to store temp data
+0000212A  4280                    1840              CLR.L   D0                      
+0000212C  4281                    1841              CLR.L   D1                      
+0000212E  207C 00000000           1842              MOVEA.L #0, A0                  
+00002134  227C 00000000           1843              MOVEA.L #0, A1                  
+0000213A  2205                    1844              MOVE.L  D5,D1
+0000213C                          1845              
+0000213C                          1846              * retrieve dest register for MODE 111
+0000213C  EC89                    1847              LSR.L   #6,D1   * shift the bits to right by 6
+0000213E  E689                    1848              LSR.L   #3,D1   * shift the bits to right by extra 3
+00002140  0201 0001               1849              ANDI.B  #1,D1   * mask the first 2 bits 
+00002144  0C01 0000               1850              CMPI.B  #0, D1  * if it's 000, absolute word address
+00002148  6700 000C               1851              BEQ     WORDMODE
+0000214C  0C01 0001               1852              CMPI.B  #1, D1  * if it's 001, absolute long address
+00002150  6700 0030               1853              BEQ     LONGMODE
+00002154                          1854              *JSR     OP_DATA *not sure..
+00002154  4E75                    1855              RTS
+00002156                          1856  
+00002156                          1857  
+00002156                          1858  *---------------------------------------------------------------------------*
+00002156                          1859  * WORDMODE: absolute word address
+00002156                          1860  *---------------------------------------------------------------------------*
+00002156  43F9 00002C18           1861  WORDMODE    LEA     DISP_HEX,A1
+0000215C  103C 000E               1862              MOVE.B  #14,D0
+00002160  4E4F                    1863              TRAP    #15
+00002162                          1864              
+00002162  4285                    1865              CLR.L   D5
+00002164  3A1D                    1866              MOVE.W  (A5)+,D5
+00002166                          1867              
+00002166  43F9 000028EB           1868              LEA     TMPOUTPUT,A1
+0000216C  2205                    1869              MOVE.L  D5,D1
+0000216E  7404                    1870              MOVE.L  #4,D2       *move word size 4
+00002170  4EB8 11A4               1871              JSR     HEX2ASCII
+00002174  43F9 000028EB           1872              LEA     TMPOUTPUT,A1
+0000217A  103C 000E               1873              MOVE.B  #14,D0
+0000217E  4E4F                    1874              TRAP    #15
+00002180                          1875              
+00002180  4E75                    1876              RTS
+00002182                          1877  
+00002182                          1878  *---------------------------------------------------------------------------*
+00002182                          1879  * LONGMODE: absolute long address
+00002182                          1880  *---------------------------------------------------------------------------*
+00002182  43F9 00002C18           1881  LONGMODE    LEA     DISP_HEX,A1
+00002188  103C 000E               1882              MOVE.B  #14,D0
+0000218C  4E4F                    1883              TRAP    #15
+0000218E                          1884              
+0000218E  4285                    1885              CLR.L   D5
+00002190  2A1D                    1886              MOVE.L  (A5)+,D5
+00002192                          1887              
+00002192  43F9 000028EB           1888              LEA     TMPOUTPUT,A1
+00002198  2205                    1889              MOVE.L  D5,D1
+0000219A  7408                    1890              MOVE.L  #8,D2           *move longword size 8
+0000219C  4EB8 11A4               1891              JSR     HEX2ASCII
+000021A0  43F9 000028EB           1892              LEA     TMPOUTPUT,A1
+000021A6  103C 000E               1893              MOVE.B  #14,D0
+000021AA  4E4F                    1894              TRAP    #15
+000021AC                          1895              
+000021AC  4E75                    1896              RTS
+000021AE                          1897  
+000021AE                          1898  
+000021AE                          1899  *---------------------------------------------------------------------------*
+000021AE                          1900  * IMMEDIATE: immediate address
+000021AE                          1901  *---------------------------------------------------------------------------*
+000021AE  43F9 00002C3E           1902  IMMEDIATE   LEA     DISP_LB,A1
+000021B4  103C 000E               1903              MOVE.B  #14,D0
+000021B8  4E4F                    1904              TRAP    #15
+000021BA  43F9 00002C18           1905              LEA     DISP_HEX,A1
+000021C0  103C 000E               1906              MOVE.B  #14,D0
+000021C4  4E4F                    1907              TRAP    #15
+000021C6                          1908              
+000021C6                          1909              * check for size
+000021C6  0C04 0000               1910              CMPI.B  #0,D4
+000021CA  6700 0012               1911              BEQ     IMMD_B
+000021CE  0C04 0001               1912              CMPI.B  #1,D4
+000021D2  6700 002A               1913              BEQ     IMMD_W
+000021D6  0C04 0002               1914              CMPI.B  #2,D4
+000021DA  6700 0042               1915              BEQ     IMMD_L
+000021DE                          1916  
+000021DE                          1917  IMMD_B
+000021DE  4285                    1918              CLR.L   D5
+000021E0  3A1D                    1919              MOVE.W  (A5)+,D5
+000021E2                          1920              
+000021E2  43F9 000028EB           1921              LEA     TMPOUTPUT,A1
+000021E8  2205                    1922              MOVE.L  D5,D1
+000021EA  7402                    1923              MOVE.L  #2,D2
+000021EC  4EB8 11A4               1924              JSR     HEX2ASCII
+000021F0  43F9 000028EB           1925              LEA     TMPOUTPUT,A1
+000021F6  103C 000E               1926              MOVE.B  #14,D0
+000021FA  4E4F                    1927              TRAP    #15
+000021FC  4E75                    1928              RTS
+000021FE                          1929              
+000021FE                          1930  IMMD_W
+000021FE  4285                    1931              CLR.L   D5
+00002200  3A1D                    1932              MOVE.W  (A5)+,D5
+00002202                          1933              
+00002202  43F9 000028EB           1934              LEA     TMPOUTPUT,A1
+00002208  2205                    1935              MOVE.L  D5,D1
+0000220A  7404                    1936              MOVE.L  #4,D2
+0000220C  4EB8 11A4               1937              JSR     HEX2ASCII
+00002210  43F9 000028EB           1938              LEA     TMPOUTPUT,A1
+00002216  103C 000E               1939              MOVE.B  #14,D0
+0000221A  4E4F                    1940              TRAP    #15
+0000221C  4E75                    1941              RTS
+0000221E                          1942              
+0000221E                          1943  
+0000221E                          1944  IMMD_L
+0000221E  4285                    1945              CLR.L   D5
+00002220  3A1D                    1946              MOVE.W  (A5)+,D5
+00002222                          1947              
+00002222  43F9 000028EB           1948              LEA     TMPOUTPUT,A1
+00002228  2205                    1949              MOVE.L  D5,D1
+0000222A  7408                    1950              MOVE.L  #8,D2
+0000222C  4EB8 11A4               1951              JSR     HEX2ASCII
+00002230  43F9 000028EB           1952              LEA     TMPOUTPUT,A1
+00002236  103C 000E               1953              MOVE.B  #14,D0
+0000223A  4E4F                    1954              TRAP    #15
+0000223C  4E75                    1955              RTS
+0000223E                          1956  
+0000223E                          1957  
+0000223E                          1958  *---------------------------------------------------------------------------*
+0000223E                          1959  * DEST_REGISTER: decode and display destination register (bit 11 - 9)
+0000223E                          1960  *---------------------------------------------------------------------------*
+0000223E                          1961  DEST_REGISTER
+0000223E                          1962              * clear registers to store temp data
+0000223E  4280                    1963              CLR.L   D0                      
+00002240  4281                    1964              CLR.L   D1                      
+00002242  207C 00000000           1965              MOVEA.L #0, A0                  
+00002248  227C 00000000           1966              MOVEA.L #0, A1 
+0000224E                          1967              
+0000224E  2205                    1968              MOVE.L  D5,D1
+00002250  EC89                    1969              LSR.L   #6,D1
+00002252  E689                    1970              LSR.L   #3,D1
+00002254  0281 00000007           1971              ANDI.L  #7,D1
+0000225A                          1972              
+0000225A  0C01 0000               1973              CMPI.B  #0,D1
+0000225E  6700 0092               1974              BEQ     REG_0
+00002262  0C01 0001               1975              CMPI.B  #1,D1
+00002266  6700 0098               1976              BEQ     REG_1
+0000226A  0C01 0002               1977              CMPI.B  #2,D1
+0000226E  6700 009E               1978              BEQ     REG_2
+00002272  0C01 0003               1979              CMPI.B  #3,D1
+00002276  6700 00A4               1980              BEQ     REG_3
+0000227A  0C01 0004               1981              CMPI.B  #4,D1
+0000227E  6700 00AA               1982              BEQ     REG_4
+00002282  0C01 0005               1983              CMPI.B  #5,D1
+00002286  6700 00B0               1984              BEQ     REG_5
+0000228A  0C01 0006               1985              CMPI.B  #6,D1
+0000228E  6700 00B6               1986              BEQ     REG_6
+00002292  0C01 0007               1987              CMPI.B  #7,D1
+00002296  6700 00BC               1988              BEQ     REG_7
+0000229A                          1989  
+0000229A                          1990  *---------------------------------------------------------------------------*
+0000229A                          1991  * SRC_REGISTER: decode and display source register (bit 2 - 0)
+0000229A                          1992  *---------------------------------------------------------------------------*           
+0000229A                          1993  SRC_REGISTER 
+0000229A                          1994              * clear registers to store temp data
+0000229A  4280                    1995              CLR.L   D0                      
+0000229C  4281                    1996              CLR.L   D1                      
+0000229E  207C 00000000           1997              MOVEA.L #0, A0                  
+000022A4  227C 00000000           1998              MOVEA.L #0, A1                  
+000022AA                          1999              
+000022AA  2205                    2000              MOVE.L  D5,D1   * temp store the processing data
+000022AC  0281 00000007           2001              ANDI.L  #7,D1   * mask the first 4 bits with 0111
+000022B2                          2002              
+000022B2  0C01 0000               2003              CMPI.B  #0,D1
+000022B6  6700 003A               2004              BEQ     REG_0
+000022BA  0C01 0001               2005              CMPI.B  #1,D1
+000022BE  6700 0040               2006              BEQ     REG_1
+000022C2  0C01 0002               2007              CMPI.B  #2,D1
+000022C6  6700 0046               2008              BEQ     REG_2
+000022CA  0C01 0003               2009              CMPI.B  #3,D1
+000022CE  6700 004C               2010              BEQ     REG_3
+000022D2  0C01 0004               2011              CMPI.B  #4,D1
+000022D6  6700 0052               2012              BEQ     REG_4
+000022DA  0C01 0005               2013              CMPI.B  #5,D1
+000022DE  6700 0058               2014              BEQ     REG_5
+000022E2  0C01 0006               2015              CMPI.B  #6,D1
+000022E6  6700 005E               2016              BEQ     REG_6
+000022EA  0C01 0007               2017              CMPI.B  #7,D1
+000022EE  6700 0064               2018              BEQ     REG_7
+000022F2                          2019  
+000022F2                          2020  *---------------------------------------------------------------------------*
+000022F2                          2021  * REG_0 ~ REG_7: display register 0 to 7
+000022F2                          2022  *---------------------------------------------------------------------------*
+000022F2  43F9 00002C43           2023  REG_0       LEA     DISP_0,A1
+000022F8  103C 000E               2024              MOVE.B  #14,D0
+000022FC  4E4F                    2025              TRAP    #15
+000022FE  4E75                    2026              RTS
+00002300                          2027              
+00002300  43F9 00002C45           2028  REG_1       LEA     DISP_1,A1
+00002306  103C 000E               2029              MOVE.B  #14,D0
+0000230A  4E4F                    2030              TRAP    #15
+0000230C  4E75                    2031              RTS
+0000230E                          2032              
+0000230E                          2033  
+0000230E  43F9 00002C47           2034  REG_2       LEA     DISP_2,A1
+00002314  103C 000E               2035              MOVE.B  #14,D0
+00002318  4E4F                    2036              TRAP    #15
+0000231A  4E75                    2037              RTS
+0000231C                          2038            
+0000231C  43F9 00002C49           2039  REG_3       LEA     DISP_3,A1
+00002322  103C 000E               2040              MOVE.B  #14,D0
+00002326  4E4F                    2041              TRAP    #15
+00002328  4E75                    2042              RTS
+0000232A                          2043              
+0000232A  43F9 00002C4B           2044  REG_4       LEA     DISP_4,A1
+00002330  103C 000E               2045              MOVE.B  #14,D0
+00002334  4E4F                    2046              TRAP    #15
+00002336  4E75                    2047              RTS
+00002338                          2048              
+00002338  43F9 00002C4D           2049  REG_5       LEA     DISP_5,A1
+0000233E  103C 000E               2050              MOVE.B  #14,D0
+00002342  4E4F                    2051              TRAP    #15
+00002344  4E75                    2052              RTS
+00002346                          2053              
+00002346  43F9 00002C4F           2054  REG_6       LEA     DISP_6,A1
+0000234C  103C 000E               2055              MOVE.B  #14,D0
+00002350  4E4F                    2056              TRAP    #15
+00002352  4E75                    2057              RTS
+00002354                          2058              
+00002354  43F9 00002C51           2059  REG_7       LEA     DISP_7,A1
+0000235A  103C 000E               2060              MOVE.B  #14,D0
+0000235E  4E4F                    2061              TRAP    #15
+00002360  4E75                    2062              RTS
+00002362                          2063              
+00002362                          2064  *---------------------------------------------------------------------------*
+00002362                          2065  * REPEAT : Ask user whether they wish to run the program again
+00002362                          2066  *---------------------------------------------------------------------------*           
+00002362  4246                    2067  REPEAT      CLR.W   D6                      * Reset D6 (Loop Count)
+00002364  43F9 00002711           2068              LEA     REPEATMSG,A1
+0000236A  103C 000E               2069              MOVE.B  #14,D0
+0000236E  4E4F                    2070              TRAP    #15
+00002370                          2071              
+00002370  43F9 0000289B           2072              LEA     TMPINPUT,A1             * allocate space to temp store user input
+00002376  103C 0002               2073              MOVE.B  #2,D0
+0000237A  4E4F                    2074              TRAP    #15
+0000237C                          2075  
+0000237C  0C01 0001               2076              CMPI.B  #1,D1                   * check for length of user input
+00002380  66E0                    2077              BNE     REPEAT                  * return to the beginning of the function if unequal
+00002382                          2078              
+00002382  0C11 0059               2079              CMPI.B  #$59,(A1)               * compare the input with Y    
+00002386  6700 EC82               2080              BEQ     PROGLP                  * repeat the program
+0000238A                          2081              
+0000238A  0C11 0079               2082              CMPI.B  #$79,(A1)               * compare the input with y    
+0000238E  6700 EC7A               2083              BEQ     PROGLP                  * repeat the program
+00002392                          2084              
+00002392  0C11 004E               2085              CMPI.B  #$4E,(A1)               * compare the input with N    
+00002396  6700 000C               2086              BEQ     TERMINATE               * finish program
+0000239A                          2087              
+0000239A  0C11 006E               2088              CMPI.B  #$6E,(A1)               * compare the input with n    
+0000239E  6700 0004               2089              BEQ     TERMINATE               * finish program
+000023A2                          2090              
+000023A2  60BE                    2091              BRA     REPEAT                  * invalid input/repeat the function
+000023A4                          2092  
+000023A4                          2093  *---------------------------------------------------------------------------*
+000023A4                          2094  * TERMINATE
+000023A4                          2095  *---------------------------------------------------------------------------*
+000023A4                          2096  TERMINATE   
+000023A4  43F9 00002754           2097              LEA     FINMSG,A1
+000023AA  103C 000E               2098              MOVE.B  #14,D0
+000023AE  4E4F                    2099              TRAP    #15
+000023B0                          2100  
+000023B0  103C 0009               2101              MOVE.B  #9,D0
+000023B4  4E4F                    2102              TRAP    #15
+000023B6                          2103  
+000023B6                          2104  *---------------------------------------------------------------------------*
+000023B6                          2105  * Data storage                                                 
+000023B6                          2106  *---------------------------------------------------------------------------*  
+000023B6                          2107  WELCOME
+000023B6= 20 20 20 20 20 20 ...   2108              DC.B '                         ___     ___ ___        ___   ___ ___                 ',CR,LF
+00002406= 3D 3D 3D 3D 3D 20 ...   2109              DC.B '=====           \  /\  /|___|   |   |   ||\  /||___    | |   |           =====',CR,LF
+00002456= 3D 3D 3D 3D 3D 20 ...   2110              DC.B '=====            \/  \/ |___|___|___|___|| \/ ||___    | |___|           =====',CR,LF
+000024A6                          2111      
+000024A6= 20 20 20 20 20 20 ...   2112              DC.B '                        ___ ___ ___  ___      ___                             ',CR,LF
+000024F6= 20 20 20 20 20 20 ...   2113              DC.B '                       |     | |___)|    |   |___                             ',CR,LF 
+00002546= 20 20 20 20 20 20 ...   2114              DC.B '                       |___ _|_|\___|___ |___|___                             ',CR,LF
+00002596                          2115      
+00002596= 20 20 20 20 20 20 ...   2116              DC.B '           __  ___ ___   _   ___  ___  ___        ___      ___ ___            ',CR,LF
+000025E6= 3D 3D 3D 3D 3D 20 ...   2117              DC.B '=====     |  \  | |___  /_\ |___ |___ |___ |\  /||___||   |___|___)      =====',CR,LF 
+00002636= 3D 3D 3D 3D 3D 20 ...   2118              DC.B '=====     |__/ _|_ ___|/   \ ___| ___||___ | \/ ||___||___|___|\___      =====',CR,LF,CR,LF,CR,LF,0
+0000268B                          2119  
+0000268B                          2120  PROMPT_START
+0000268B= 50 6C 65 61 73 65 ...   2121              DC.B    'Please enter a hexadecimal starting address.',CR,LF,0
+000026BA                          2122      
+000026BA                          2123  PROMPT_END
+000026BA= 50 6C 65 61 73 65 ...   2124              DC.B    'Please enter a hexadecimal ending address.',CR,LF,0
+000026E7= 0D 0A 48 69 74 20 ...   2125  DISP_NEXT   DC.B    CR,LF,'Hit Enter to print the next 30 lines.',CR,LF,0            
+00002711= 57 6F 75 6C 64 20 ...   2126  REPEATMSG   DC.B    'Would you like to run again? Press Y to continue or N to finish.',CR,LF,0
+00002754= 54 68 61 6E 6B 20 ...   2127  FINMSG      DC.B    'Thank you for using Circle Disassembler.',CR,LF,0
+0000277F= 45 72 72 6F 72 3A ...   2128  ERRMSG_1    DC.B    'Error: Invalid Input Address',CR,LF,0
+0000279E= 45 72 72 6F 72 3A ...   2129  ERRMSG_3    DC.B    'Error: Invalid Input Address (Odd)',CR,LF,0
+000027C3= 45 72 72 6F 72 3A ...   2130  ERRMSG_5    DC.B    'Error: Invalid Input Address (start > end)',CR,LF,0
+000027F0                          2131  
+000027F0                          2132  VR_S_ADDR   DS.B    80                      * allocate storage space for the starting address
+00002840                          2133  VR_E_ADDR   DS.B    80                      * allocate storage space for the ending address
+00002890                          2134  S_ADDR_HX   DS.L    1                       * allocate storage space for the starting address in hex
+00002894                          2135  E_ADDR_HX   DS.L    1                       * allocate storage space for the ending address in hex
+00002898= 0D 0A 00                2136  ENDLINE_M   DC.B    CR,LF,0
+0000289B                          2137  TMPINPUT    DS.B    80                      * temp store user input
+000028EB                          2138  TMPOUTPUT   DS.B    80                      * temp store prog output
+0000293B= 20 20 20 4F 52 49 ...   2139  DISP_ORI_B  DC.B    '   ORI.B',0
+00002944= 20 20 20 4F 52 49 ...   2140  DISP_ORI_W  DC.B    '   ORI.W',0
+0000294D= 20 20 20 4F 52 49 ...   2141  DISP_ORI_L  DC.B    '   ORI.L',0
+00002956= 20 20 20 45 4F 52 ...   2142  DISP_EORI_B  DC.B    '   EORI.B',0
+00002960= 20 20 20 45 4F 52 ...   2143  DISP_EORI_W  DC.B    '   EORI.W',0
+0000296A= 20 20 20 45 4F 52 ...   2144  DISP_EORI_L  DC.B    '   EORI.L',0
+00002974= 20 20 20 42 54 53 ...   2145  DISP_BTST   DC.B    '   BTST',0
+0000297C= 20 20 20 43 4D 50 ...   2146  DISP_CMPI_B  DC.B    '   CMPI.B',0
+00002986= 20 20 20 43 4D 50 ...   2147  DISP_CMPI_W  DC.B    '   CMPI.W',0
+00002990= 20 20 20 43 4D 50 ...   2148  DISP_CMPI_L  DC.B    '   CMPI.L',0
+0000299A= 20 20 20 44 41 54 ...   2149  DISP_DATA   DC.B    '   DATA',0
+000029A2= 20 20 20 4D 4F 56 ...   2150  DISP_MOVE_B DC.B    '   MOVE.B',0
+000029AC= 20 20 20 4D 4F 56 ...   2151  DISP_MOVE_W DC.B    '   MOVE.W',0
+000029B6= 20 20 20 4D 4F 56 ...   2152  DISP_MOVE_L DC.B    '   MOVE.L',0
+000029C0= 20 20 20 52 54 53 00    2153  DISP_RTS    DC.B    '   RTS',0
+000029C7= 20 20 20 4A 53 52 00    2154  DISP_JSR    DC.B    '   JSR',0
+000029CE= 20 20 20 4E 45 47 ...   2155  DISP_NEG_B    DC.B    '   NEG.B',0
+000029D7= 20 20 20 4E 45 47 ...   2156  DISP_NEG_W    DC.B    '   NEG.W',0
+000029E0= 20 20 20 4E 45 47 ...   2157  DISP_NEG_L    DC.B    '   NEG.L',0
+000029E9= 20 20 20 4E 4F 54 ...   2158  DISP_NOT_B  DC.B    '   NOT.B',0
+000029F2= 20 20 20 4E 4F 54 ...   2159  DISP_NOT_W  DC.B    '   NOT.W',0
+000029FB= 20 20 20 4E 4F 54 ...   2160  DISP_NOT_L  DC.B    '   NOT.L',0
+00002A04= 20 20 20 4C 45 41 00    2161  DISP_LEA    DC.B    '   LEA',0
+00002A0B= 20 20 20 4D 4F 56 ...   2162  DISP_MOVEM_W    DC.B    '   MOVEM.W',0
+00002A16= 20 20 20 4D 4F 56 ...   2163  DISP_MOVEM_L    DC.B    '   MOVEM.L',0
+00002A21= 20 20 20 41 44 44 ...   2164  DISP_ADDQ_B DC.B    '   ADDQ.B',0
+00002A2B= 20 20 20 41 44 44 ...   2165  DISP_ADDQ_W DC.B    '   ADDQ.W',0
+00002A35= 20 20 20 41 44 44 ...   2166  DISP_ADDQ_L DC.B    '   ADDQ.L',0
+00002A3F= 20 20 20 44 49 56 ...   2167  DISP_DIVS   DC.B    '   DIVS',0
+00002A47= 20 20 20 53 55 42 ...   2168  DISP_SUB_B  DC.B    '   SUB.B',0
+00002A50= 20 20 20 53 55 42 ...   2169  DISP_SUB_W  DC.B    '   SUB.W',0
+00002A59= 20 20 20 53 55 42 ...   2170  DISP_SUB_L  DC.B    '   SUB.L',0
+00002A62= 20 20 20 53 55 42 ...   2171  DISP_SUBI_B  DC.B    '   SUBI.B',0
+00002A6C= 20 20 20 53 55 42 ...   2172  DISP_SUBI_W  DC.B    '   SUBI.W',0
+00002A76= 20 20 20 53 55 42 ...   2173  DISP_SUBI_L  DC.B    '   SUBI.L',0
+00002A80= 20 20 20 53 55 42 ...   2174  DISP_SUBA_W  DC.B    '   SUBA.W',0
+00002A8A= 20 20 20 53 55 42 ...   2175  DISP_SUBA_L  DC.B    '   SUBA.L',0
+00002A94= 20 20 20 45 4F 52 ...   2176  DISP_EOR_B  DC.B    '   EOR.B',0
+00002A9D= 20 20 20 45 4F 52 ...   2177  DISP_EOR_W  DC.B    '   EOR.W',0
+00002AA6= 20 20 20 45 4F 52 ...   2178  DISP_EOR_L  DC.B    '   EOR.L',0
+00002AAF= 20 20 20 43 4D 50 ...   2179  DISP_CMP_B  DC.B    '   CMP.B',0
+00002AB8= 20 20 20 43 4D 50 ...   2180  DISP_CMP_W  DC.B    '   CMP.W',0
+00002AC1= 20 20 20 43 4D 50 ...   2181  DISP_CMP_L  DC.B    '   CMP.L',0
+00002ACA= 20 20 20 43 4D 50 ...   2182  DISP_CMPA_W  DC.B    '   CMPA.W',0
+00002AD4= 20 20 20 43 4D 50 ...   2183  DISP_CMPA_L  DC.B    '   CMPA.L',0
+00002ADE= 20 20 20 4D 55 4C ...   2184  DISP_MULS_W DC.B    '   MULS.W',0
+00002AE8= 20 20 20 41 4E 44 ...   2185  DISP_AND_B  DC.B    '   AND.B',0
+00002AF1= 20 20 20 41 4E 44 ...   2186  DISP_AND_W  DC.B    '   AND.W',0
+00002AFA= 20 20 20 41 4E 44 ...   2187  DISP_AND_L  DC.B    '   AND.L',0
+00002B03= 20 20 20 41 44 44 ...   2188  DISP_ADD_B  DC.B    '   ADD.B',0
+00002B0C= 20 20 20 41 44 44 ...   2189  DISP_ADD_W  DC.B    '   ADD.W',0
+00002B15= 20 20 20 41 44 44 ...   2190  DISP_ADD_L  DC.B    '   ADD.L',0
+00002B1E= 20 20 20 41 44 44 ...   2191  DISP_ADDA_W DC.B    '   ADDA.W',0
+00002B28= 20 20 20 41 44 44 ...   2192  DISP_ADDA_L DC.B    '   ADDA.L',0
+00002B32= 20 20 20 4C 53 52 ...   2193  DISP_LSR_B  DC.B    '   LSR.B',0
+00002B3B= 20 20 20 4C 53 4C ...   2194  DISP_LSL_B  DC.B    '   LSL.B',0
+00002B44= 20 20 20 4C 53 52 ...   2195  DISP_LSR_W  DC.B    '   LSR.W',0
+00002B4D= 20 20 20 4C 53 4C ...   2196  DISP_LSL_W  DC.B    '   LSL.W',0
+00002B56= 20 20 20 4C 53 52 ...   2197  DISP_LSR_L  DC.B    '   LSR.L',0
+00002B5F= 20 20 20 4C 53 4C ...   2198  DISP_LSL_L  DC.B    '   LSL.L',0
+00002B68= 20 20 20 41 53 52 ...   2199  DISP_ASR_B  DC.B    '   ASR.B',0
+00002B71= 20 20 20 41 53 4C ...   2200  DISP_ASL_B  DC.B    '   ASL.B',0
+00002B7A= 20 20 20 41 53 52 ...   2201  DISP_ASR_W  DC.B    '   ASR.W',0
+00002B83= 20 20 20 41 53 4C ...   2202  DISP_ASL_W  DC.B    '   ASL.W',0
+00002B8C= 20 20 20 41 53 52 ...   2203  DISP_ASR_L  DC.B    '   ASR.L',0
+00002B95= 20 20 20 41 53 4C ...   2204  DISP_ASL_L  DC.B    '   ASL.L',0
+00002B9E= 20 20 20 52 4F 52 ...   2205  DISP_ROR_B  DC.B    '   ROR.B',0
+00002BA7= 20 20 20 52 4F 4C ...   2206  DISP_ROL_B  DC.B    '   ROL.B',0
+00002BB0= 20 20 20 52 4F 52 ...   2207  DISP_ROR_W  DC.B    '   ROR.W',0
+00002BB9= 20 20 20 52 4F 4C ...   2208  DISP_ROL_W  DC.B    '   ROL.W',0
+00002BC2= 20 20 20 52 4F 52 ...   2209  DISP_ROR_L  DC.B    '   ROR.L',0
+00002BCB= 20 20 20 52 4F 4C ...   2210  DISP_ROL_L  DC.B    '   ROL.L',0
+00002BD4= 20 20 20 42 52 41 00    2211  DISP_BRA    DC.B    '   BRA',0
+00002BDB= 20 20 20 42 4C 54 00    2212  DISP_BLT    DC.B    '   BLT',0
+00002BE2= 20 20 20 42 45 51 00    2213  DISP_BEQ    DC.B    '   BEQ',0
+00002BE9= 20 20 20 42 4E 45 00    2214  DISP_BNE    DC.B    '   BNE',0
+00002BF0= 20 20 20 42 48 49 00    2215  DISP_BHI    DC.B    '   BHI',0
+00002BF7= 20 20 20 4D 4F 56 ...   2216  DISP_MOVEA_B    DC.B    '   MOVEA.B',0
+00002C02= 20 20 20 4D 4F 56 ...   2217  DISP_MOVEA_W    DC.B    '   MOVEA.W',0
+00002C0D= 20 20 20 4D 4F 56 ...   2218  DISP_MOVEA_L    DC.B    '   MOVEA.L',0
+00002C18                          2219  
+00002C18= 20 20 20 24 00          2220  DISP_HEX     DC.B    '   $',0
+00002C1D= 20 20 20 44 00          2221  DISP_D  DC.B    '   D',0
+00002C22= 20 20 20 41 00          2222  DISP_A  DC.B    '   A',0
+00002C27= 20 20 20 28 00          2223  DISP_OP  DC.B    '   (',0
+00002C2C= 29 00                   2224  DISP_CP  DC.B   ')',0
+00002C2E= 20 20 20 28 41 00       2225  DISP_AOP  DC.B    '   (A',0
+00002C34                          2226  
+00002C34= 20 20 20 2D 28 41 00    2227  DISP_PRE    DC.B    '   -(A',0
+00002C3B= 29 2B 00                2228  DISP_POST   DC.B    ')+',0
+00002C3E= 20 20 20 23 00          2229  DISP_LB DC.B    '   #',0
+00002C43= 30 00                   2230  DISP_0  DC.B    '0',0
+00002C45= 31 00                   2231  DISP_1  DC.B    '1',0
+00002C47= 32 00                   2232  DISP_2  DC.B    '2',0
+00002C49= 33 00                   2233  DISP_3  DC.B    '3',0
+00002C4B= 34 00                   2234  DISP_4  DC.B    '4',0
+00002C4D= 35 00                   2235  DISP_5  DC.B    '5',0
+00002C4F= 36 00                   2236  DISP_6  DC.B    '6',0
+00002C51= 37 00                   2237  DISP_7  DC.B    '7',0
+00002C53                          2238  
+00002C53                          2239  
+00002C53                          2240  *---------------------------------------------------------------------------*
+00002C53                          2241  * Ends program
+00002C53                          2242  *---------------------------------------------------------------------------*
+00002C53                          2243              END    START                    * last line of source
+
+No errors detected
+No warnings generated
+
+
+SYMBOL TABLE INFORMATION
+Symbol-name         Value
+-------------------------
+ASC2HXLP            1142
+ASCII2HEX           113C
+ASC_ERR             119E
+ASC_LOW             1180
+ASC_NUM             1190
+ASC_SFT             1198
+ASC_UPP             1188
+CR                  D
+DEST_MODE           1F6E
+DEST_REGISTER       223E
+DISP_0              2C43
+DISP_1              2C45
+DISP_2              2C47
+DISP_3              2C49
+DISP_4              2C4B
+DISP_5              2C4D
+DISP_6              2C4F
+DISP_7              2C51
+DISP_A              2C22
+DISP_ADDA_L         2B28
+DISP_ADDA_W         2B1E
+DISP_ADDQ_B         2A21
+DISP_ADDQ_L         2A35
+DISP_ADDQ_W         2A2B
+DISP_ADD_B          2B03
+DISP_ADD_L          2B15
+DISP_ADD_W          2B0C
+DISP_AND_B          2AE8
+DISP_AND_L          2AFA
+DISP_AND_W          2AF1
+DISP_AOP            2C2E
+DISP_ASL_B          2B71
+DISP_ASL_L          2B95
+DISP_ASL_W          2B83
+DISP_ASR_B          2B68
+DISP_ASR_L          2B8C
+DISP_ASR_W          2B7A
+DISP_BEQ            2BE2
+DISP_BHI            2BF0
+DISP_BLT            2BDB
+DISP_BNE            2BE9
+DISP_BRA            2BD4
+DISP_BTST           2974
+DISP_CMPA_L         2AD4
+DISP_CMPA_W         2ACA
+DISP_CMPI_B         297C
+DISP_CMPI_L         2990
+DISP_CMPI_W         2986
+DISP_CMP_B          2AAF
+DISP_CMP_L          2AC1
+DISP_CMP_W          2AB8
+DISP_CP             2C2C
+DISP_D              2C1D
+DISP_DATA           299A
+DISP_DIVS           2A3F
+DISP_EORI_B         2956
+DISP_EORI_L         296A
+DISP_EORI_W         2960
+DISP_EOR_B          2A94
+DISP_EOR_L          2AA6
+DISP_EOR_W          2A9D
+DISP_HEX            2C18
+DISP_JSR            29C7
+DISP_LB             2C3E
+DISP_LEA            2A04
+DISP_LSL_B          2B3B
+DISP_LSL_L          2B5F
+DISP_LSL_W          2B4D
+DISP_LSR_B          2B32
+DISP_LSR_L          2B56
+DISP_LSR_W          2B44
+DISP_MOVEA_B        2BF7
+DISP_MOVEA_L        2C0D
+DISP_MOVEA_W        2C02
+DISP_MOVEM_L        2A16
+DISP_MOVEM_W        2A0B
+DISP_MOVE_B         29A2
+DISP_MOVE_L         29B6
+DISP_MOVE_W         29AC
+DISP_MULS_W         2ADE
+DISP_NEG_B          29CE
+DISP_NEG_L          29E0
+DISP_NEG_W          29D7
+DISP_NEXT           26E7
+DISP_NOT_B          29E9
+DISP_NOT_L          29FB
+DISP_NOT_W          29F2
+DISP_OP             2C27
+DISP_ORI_B          293B
+DISP_ORI_L          294D
+DISP_ORI_W          2944
+DISP_POST           2C3B
+DISP_PRE            2C34
+DISP_ROL_B          2BA7
+DISP_ROL_L          2BCB
+DISP_ROL_W          2BB9
+DISP_ROR_B          2B9E
+DISP_ROR_L          2BC2
+DISP_ROR_W          2BB0
+DISP_RTS            29C0
+DISP_SUBA_L         2A8A
+DISP_SUBA_W         2A80
+DISP_SUBI_B         2A62
+DISP_SUBI_L         2A76
+DISP_SUBI_W         2A6C
+DISP_SUB_B          2A47
+DISP_SUB_L          2A59
+DISP_SUB_W          2A50
+D_MODE000           2010
+D_MODE010           2058
+D_MODE011           20B8
+D_MODE100           20D8
+D_MODE111           212A
+EA_ARITH            1F08
+EA_DATA             142E
+EA_GEN              1F54
+EA_MOVEA            1F2E
+EA_NOSRC            1EF4
+ENDLINE_M           2898
+END_ADDR            1088
+ERRMSG_1            277F
+ERRMSG_3            279E
+ERRMSG_5            27C3
+ERROR_1             10EC
+ERROR_2             10FC
+ERROR_3             110C
+ERROR_4             111C
+ERROR_5             112C
+E_ADDR_HX           2894
+FINMSG              2754
+HEX2ASCII           11A4
+HEX_CHAR            11D2
+HEX_CONT            11D6
+HEX_LOOP            11B8
+IMMD_B              21DE
+IMMD_L              221E
+IMMD_W              21FE
+IMMEDIATE           21AE
+INTRO               1028
+IS_ODD              11E6
+IS_ODD_ERR          11FC
+JMPTABLE            127C
+LF                  A
+LONGMODE            2182
+MAIN                1202
+MODE000             1FFC
+MODE001             2024
+MODE010             2038
+MODE011             2078
+MODE100             2098
+MODE111             20F8
+NEXTLINES           125E
+OP0000              12DC
+OP0001              1502
+OP0010              1556
+OP0011              15B8
+OP0100              1618
+OP0101              17B2
+OP0110              182E
+OP0111              18BC
+OP1000              18C0
+OP1001              18FC
+OP1010              19D4
+OP1011              19D8
+OP1100              1AD4
+OP1101              1B70
+OP1110              1C42
+OP1111              1EF0
+OP_ADDA_L           1C2A
+OP_ADDA_W           1C12
+OP_ADDQ             17D2
+OP_ADDQ_B           17F8
+OP_ADDQ_L           181C
+OP_ADDQ_W           180A
+OP_ADD_B            1BCA
+OP_ADD_L            1BFA
+OP_ADD_W            1BE2
+OP_AND_B            1B3A
+OP_AND_L            1B5E
+OP_AND_W            1B4C
+OP_ASL              1DE2
+OP_ASL_B            1E06
+OP_ASL_L            1E18
+OP_ASL_W            1E2A
+OP_ASR              1D88
+OP_ASR_B            1DAC
+OP_ASR_L            1DBE
+OP_ASR_W            1DD0
+OP_ASX              1CA4
+OP_BEQ              1892
+OP_BHI              1876
+OP_BLT              18AE
+OP_BNE              1884
+OP_BRA              18A0
+OP_BTST             1350
+OP_CMPA_L           1A44
+OP_CMPA_W           1A32
+OP_CMPI             1456
+OP_CMPI_B           1476
+OP_CMPI_L           149A
+OP_CMPI_W           1488
+OP_CMP_B            1A56
+OP_CMP_L            1A86
+OP_CMP_W            1A6E
+OP_DATA             140A
+OP_DIVS             18E8
+OP_EORI             135E
+OP_EORI_B           137E
+OP_EORI_L           13A2
+OP_EORI_W           1390
+OP_EOR_B            1A9E
+OP_EOR_L            1AC2
+OP_EOR_W            1AB0
+OP_JSR              1790
+OP_LEA              16BE
+OP_LSL              1D2E
+OP_LSL_B            1D52
+OP_LSL_L            1D64
+OP_LSL_W            1D76
+OP_LSR              1CD4
+OP_LSR_B            1CF8
+OP_LSR_L            1D0A
+OP_LSR_W            1D1C
+OP_LSX              1C8C
+OP_MOVEA_B          153E
+OP_MOVEA_L          159A
+OP_MOVEA_W          15FA
+OP_MOVEM_L          16AC
+OP_MOVEM_W          169A
+OP_MOVE_B           1526
+OP_MOVE_L           157C
+OP_MOVE_W           15DC
+OP_MULS             1B26
+OP_NEG              16D2
+OP_NEG_B            16F2
+OP_NEG_L            1722
+OP_NEG_W            170A
+OP_NOT              173A
+OP_NOT_B            175A
+OP_NOT_L            177E
+OP_NOT_W            176C
+OP_ORI              14AC
+OP_ORI_B            14CC
+OP_ORI_L            14F0
+OP_ORI_W            14DE
+OP_ROL              1E96
+OP_ROL_B            1EBA
+OP_ROL_L            1ECC
+OP_ROL_W            1EDE
+OP_ROR              1E3C
+OP_ROR_B            1E60
+OP_ROR_L            1E72
+OP_ROR_W            1E84
+OP_ROX              1CBC
+OP_RTS              17A4
+OP_SUBA_L           19C2
+OP_SUBA_W           19B0
+OP_SUBI             13B4
+OP_SUBI_B           13D4
+OP_SUBI_L           13F8
+OP_SUBI_W           13E6
+OP_SUB_B            1968
+OP_SUB_L            1998
+OP_SUB_W            1980
+PROGLP              100A
+PROMPT_END          26BA
+PROMPT_START        268B
+REG_0               22F2
+REG_1               2300
+REG_2               230E
+REG_3               231C
+REG_4               232A
+REG_5               2338
+REG_6               2346
+REG_7               2354
+REPEAT              2362
+REPEATMSG           2711
+RETURN              11A2
+SRC_MODE            1FB2
+SRC_REGISTER        229A
+STACK               7000
+START               1004
+START_ADDR          1036
+S_ADDR_HX           2890
+TERMINATE           23A4
+TMPINPUT            289B
+TMPOUTPUT           28EB
+VR_E_ADDR           2840
+VR_S_ADDR           27F0
+WELCOME             23B6
+WORDMODE            2156

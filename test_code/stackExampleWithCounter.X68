@@ -10,6 +10,7 @@ example   EQU       $1234
 example1  EQU       $8975
 example2  EQU       $3156
 example3  EQU       $5555
+SP        EQU       $7000
     
 START     ORG       $1000            ; first instruction of program
           MOVE.W    #0,COUNTER
@@ -33,7 +34,7 @@ START     ORG       $1000            ; first instruction of program
           *MOVE.W    (A1)+,D6
           *MOVE.W    (A1)+,D7           
 LOOP      ADD.B     #1,COUNTER      *COUNTER 
-          CMP.W     #4,COUNTER
+          CMP.B     #4,COUNTER
           BEQ       END             *CHECK IF LOOP IS FINISHED
           
 
@@ -47,13 +48,19 @@ LOOP      ADD.B     #1,COUNTER      *COUNTER
           BRA       LOOP
           
           
-END       MOVE.B  #9,D0
-          TRAP    #15          
+END       
+            LEA     MSG,A1
+            MOVE.B  #14,D0
+            TRAP    #15
+            
+            MOVE.B  #9,D0
+            TRAP    #15          
     
             
-SP        DC.B      80
+MSG       DC.B      'END',0   
 COUNTER   DC.W      1
           END       START        ; last line of source
+
 
 
 *~Font name~Courier New~
