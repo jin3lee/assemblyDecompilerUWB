@@ -1,0 +1,84 @@
+00001000 Starting Address
+Assembler used: EASy68K Editor/Assembler v5.15.02
+Created On: 12/6/2014 12:10:13 AM
+
+00000000                             1  *-----------------------------------------------------------
+00000000                             2  * Title      :
+00000000                             3  * Written by :
+00000000                             4  * Date       :
+00000000                             5  * Description:
+00000000                             6  *-----------------------------------------------------------
+00000000                             7      
+00000000                             8      *constants*
+00000000  =00001234                  9  example   EQU       $1234
+00000000  =00008975                 10  example1  EQU       $8975
+00000000  =00003156                 11  example2  EQU       $3156
+00000000  =00005555                 12  example3  EQU       $5555
+00000000  =00007000                 13  SP        EQU       $7000
+00000000                            14      
+00001000                            15  START     ORG       $1000            ; first instruction of program
+00001000  33FC 0000 0000105A        16            MOVE.W    #0,COUNTER
+00001008                            17            
+00001008  303C 1234                 18            MOVE.W    #example,D0     *loads D0-D3 with data
+0000100C  323C 8975                 19            MOVE.W    #example1,D1
+00001010  343C 3156                 20            MOVE.W    #example2,D2
+00001014  363C 5555                 21            MOVE.W    #example3,D3    
+00001018                            22  
+00001018  344F                      23            MOVEA.W   SP,A2           *A1 leashes to my stack pointer
+0000101A                            24            
+0000101A  3500                      25            MOVE.W    D0,-(A2)        *moves D0-D3 into stack
+0000101C  3501                      26            MOVE.W    D1,-(A2)
+0000101E  3502                      27            MOVE.W    D2,-(A2)
+00001020  3503                      28            MOVE.W    D3,-(A2)
+00001022                            29              
+00001022                            30     
+00001022                            31        
+00001022                            32            *MOVE.W    (A1)+,D4        *moves stuff in stack into D4-D7
+00001022                            33            *MOVE.W    (A1)+,D5
+00001022                            34            *MOVE.W    (A1)+,D6
+00001022                            35            *MOVE.W    (A1)+,D7           
+00001022  5239 0000105A             36  LOOP      ADD.B     #1,COUNTER      *COUNTER 
+00001028  0C39 0004 0000105A        37            CMP.B     #4,COUNTER
+00001030  6700 0012                 38            BEQ       END             *CHECK IF LOOP IS FINISHED
+00001034                            39            
+00001034                            40  
+00001034  321A                      41            MOVE.W   (A2)+,D1           *PRINTS ADDRESS
+00001036  103C 000F                 42            MOVE.B   #15,D0             *PRINTS ACCORDING TO D2 BASE VALUE
+0000103A  143C 0010                 43            MOVE.B   #16,D2             *PRINTS BASED 16 NUMBER
+0000103E  4E4F                      44            TRAP        #15             *ACTIVATES PRINT
+00001040                            45  
+00001040  4E4F                      46            TRAP      #15
+00001042                            47  
+00001042  60DE                      48            BRA       LOOP
+00001044                            49            
+00001044                            50            
+00001044                            51  END       
+00001044  43F9 00001056             52              LEA     MSG,A1
+0000104A  103C 000E                 53              MOVE.B  #14,D0
+0000104E  4E4F                      54              TRAP    #15
+00001050                            55              
+00001050  103C 0009                 56              MOVE.B  #9,D0
+00001054  4E4F                      57              TRAP    #15          
+00001056                            58      
+00001056                            59              
+00001056= 45 4E 44 00               60  MSG       DC.B      'END',0   
+0000105A= 0001                      61  COUNTER   DC.W      1
+0000105C                            62            END       START        ; last line of source
+
+No errors detected
+No warnings generated
+
+
+SYMBOL TABLE INFORMATION
+Symbol-name         Value
+-------------------------
+COUNTER             105A
+END                 1044
+EXAMPLE             1234
+EXAMPLE1            8975
+EXAMPLE2            3156
+EXAMPLE3            5555
+LOOP                1022
+MSG                 1056
+SP                  7000
+START               1000
