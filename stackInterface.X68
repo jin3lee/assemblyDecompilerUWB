@@ -19,6 +19,15 @@ START     ORG       $1000            ; first instruction of program
           MOVE.W    #$2222,D3
           BSR       PUSH_STACK 
           
+          BSR       CLEAR_STACK
+          
+          MOVE.W    #$3344,D3
+          BSR       PUSH_STACK
+          MOVE.W    #$7700,D3
+          BSR       PUSH_STACK
+          MOVE.W    #$2222,D3
+          BSR       PUSH_STACK 
+          
           BSR       PRINT_STACK
           BRA       END         
             
@@ -64,7 +73,16 @@ INCREMENT
             RTS           
 DECREMENT
             SUB.B   #1, COUNTER
-            RTS           
+            RTS          
+ 
+CLEAR_STACK
+            CMP.B     #0,COUNTER
+            BEQ       CLEAR_RETURN
+            BSR       POP_STACK
+            BRA       CLEAR_STACK
+ 
+CLEAR_RETURN
+            RTS            
 END       
             LEA     MSG,A1
             MOVE.B  #14,D0

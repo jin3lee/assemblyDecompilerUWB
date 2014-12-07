@@ -8,6 +8,13 @@
 START   
 
     MOVE.B  #14,D1
+    MOVE.B  A0,D1
+    MOVE.B  (A0),D1
+    MOVE.B  (A0)+,D1
+    MOVE.B  -(A0),D1
+    MOVE.B  $7000,D1
+    MOVE.B  $00007000,D1
+    
 
     MOVEA.L D0,A1
 
@@ -72,6 +79,7 @@ START
     BHI     START
 
     END    START        
+
 
 
 *~Font name~Courier New~
