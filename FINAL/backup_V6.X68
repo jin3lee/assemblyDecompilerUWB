@@ -336,7 +336,14 @@ MAIN
             MOVE.B  #0,D4                    * RESETS [D4] ERROR FLAG
             BRA     DISPLAY_30_LINES         * GO TO LAST STEP
            
-OUTPUT_PROCESSED_DATA
+OUTPUT_PROCESSED_DATA       
+            MOVE.B  #$D,D3                  *carriage return
+            BSR     PUSH_STACK
+            MOVE.B  #$A,D3                  *new line feed
+            BSR     PUSH_STACK
+            MOVE.B  #$0,D3                  *null
+            BSR     PUSH_STACK
+     
             BSR     PRINT_QUEUE
             MOVE.B  #0,D4                    * RESETS [D4] ERROR FLAG
 DISPLAY_30_LINES
