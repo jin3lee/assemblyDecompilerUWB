@@ -1454,13 +1454,11 @@ OP1101      CLR.L   D0
             CLR.L   D3
             *LOAD STACK WITH THIS OPMODE
             BSR     PUSH_STACK
-            MOVE.B  #'M',D3
+            MOVE.B  #'A',D3
             BSR     PUSH_STACK
-            MOVE.B  #'O',D3
+            MOVE.B  #'D',D3
             BSR     PUSH_STACK
-            MOVE.B  #'V',D3
-            BSR     PUSH_STACK
-            MOVE.B  #'E',D3                 *CHANGE PRINT
+            MOVE.B  #'D',D3
             BSR     PUSH_STACK
             MOVE.B  #'.',D3
             BSR     PUSH_STACK
@@ -1475,7 +1473,7 @@ OP1101_DETERMINE_DN_EA_OR_EA_DN
             ROR.L   #8,D1
             ANDI.L  #$01,D1     *MASKS WITH 00000001
             CMPI.L  #$00,D1     *IF EQUALS <ea>,Dn
-            BRA     OP1101_EA_DN
+            BEQ     OP1101_EA_DN
             *else procede to Dn_EA
             
 OP1101_DN_EA
@@ -1493,6 +1491,7 @@ OP1101_DN_EA
             CMPI.L  #$02,D1 *EQUALS .L
             BEQ     OP1101_PRINT_L2
 OP1101_PRINT_B2
+            *PUSH 'B'
             MOVE.B  #'B',D3
             BSR     PUSH_STACK
            
@@ -1505,14 +1504,14 @@ OP1101_PRINT_B2
            MOVE.B   #$20,GET_SRC_START_END
 
             *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$FFC7,D5   *inverse mask bits 5-3 with 1111(F[15]) 1111(F[15]) 1100(C[12]) 0111(7)
-            ADDI.L  #$0000,D5   *Add.B  BITS 5-3 TO INDICATE A Dn Register (000) 
+            ANDI.L  #$FF1F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1111(F[15]) 0001(1) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
      
-            
-            BSR     GET_EA_EA_SRC       *GETS Dn
+            BSR     GET_EA_EA_DEST      *GETS Dn
             MOVE.B  #',',D3
-            BSR     PUSH_STACK          
-            BSR     GET_EA_EA_DEST      *GETS <ea>
+            BSR     PUSH_STACK                     
+            BSR     GET_EA_EA_SRC       *GETS <ea>
+
             
             BRA     OP1101_ADD_RETURN
 OP1101_PRINT_W2
@@ -1528,14 +1527,15 @@ OP1101_PRINT_W2
             MOVE.B   #$20,GET_SRC_START_END
 
             *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$FFC7,D5   *inverse mask bits 5-3 with 1111(F[15]) 1111(F[15]) 1100(C[12]) 0111(7)
-            ADDI.L  #$0000,D5   *Add.B  BITS 5-3 TO INDICATE A Dn Register (000) 
+            ANDI.L  #$FF1F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1111(F[15]) 0001(1) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
+
       
-            
-            BSR     GET_EA_EA_SRC       *GETS Dn
+            BSR     GET_EA_EA_DEST      *GETS Dn
             MOVE.B  #',',D3
-            BSR     PUSH_STACK          
-            BSR     GET_EA_EA_DEST      *GETS <ea>
+            BSR     PUSH_STACK               
+            BSR     GET_EA_EA_SRC       *GETS <ea>       
+
 
 
             BRA     OP1101_ADD_RETURN
@@ -1551,14 +1551,15 @@ OP1101_PRINT_L2
             MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
             MOVE.B   #$20,GET_SRC_START_END
 
-            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$FFC7,D5   *inverse mask bits 5-3 with 1111(F[15]) 1111(F[15]) 1100(C[12]) 0111(7)
-            ADDI.L  #$0000,D5   *Add.B  BITS 5-3 TO INDICATE A Dn Register (000) 
-            
-            BSR     GET_EA_EA_SRC       *GETS Dn
+           *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$FF1F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1111(F[15]) 0001(1) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
+
+             
+            BSR     GET_EA_EA_DEST       *GETS Dn
             MOVE.B  #',',D3
             BSR     PUSH_STACK          
-            BSR     GET_EA_EA_DEST      *GETS <ea>
+            BSR     GET_EA_EA_SRC        *GETS <ea>
 
             BRA     OP1101_ADD_RETURN
             
@@ -1588,14 +1589,15 @@ OP1101_PRINT_B
             MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
             MOVE.B   #$20,GET_SRC_START_END
 
-            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$FFC7,D5   *inverse mask bits 5-3 with 1111(F[15]) 1111(F[15]) 1100(C[12]) 0111(7)
-            ADDI.L  #$0000,D5   *Add.B  BITS 5-3 TO INDICATE A Dn Register (000) 
+           *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$FF1F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1111(F[15]) 0001(1) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
+
             
-            BSR     GET_EA_EA_DEST       *GETS Dn
+            BSR     GET_EA_EA_SRC      *GETS <ea>
             MOVE.B  #',',D3
             BSR     PUSH_STACK          
-            BSR     GET_EA_EA_SRC      *GETS <ea>
+            BSR     GET_EA_EA_DEST       *GETS Dn
             
             BRA     OP1101_ADD_RETURN
 OP1101_PRINT_W
@@ -1610,15 +1612,15 @@ OP1101_PRINT_W
             MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
             MOVE.B   #$20,GET_SRC_START_END
 
-            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$FFC7,D5   *inverse mask bits 5-3 with 1111(F[15]) 1111(F[15]) 1100(C[12]) 0111(7)
-            ADDI.L  #$0000,D5   *Add.B  BITS 5-3 TO INDICATE A Dn Register (000) 
+           *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$FF1F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1111(F[15]) 0001(1) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
+
             
-            
-            BSR     GET_EA_EA_DEST       *GETS Dn
-            MOVE.B  #',',D3
-            BSR     PUSH_STACK          
             BSR     GET_EA_EA_SRC      *GETS <ea>
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_DEST       *GETS Dn    
             
             BRA     OP1101_ADD_RETURN
 OP1101_PRINT_L 
@@ -1634,13 +1636,15 @@ OP1101_PRINT_L
             MOVE.B   #$20,GET_SRC_START_END
 
             *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$FFC7,D5   *inverse mask bits 5-3 with 1111(F[15]) 1111(F[15]) 1100(C[12]) 0111(7)
-            ADDI.L  #$0000,D5   *Add.B  BITS 5-3 TO INDICATE A Dn Register (000) 
+            ANDI.L  #$FF1F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1111(F[15]) 0001(1) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
+
                    
-            BSR     GET_EA_EA_DEST       *GETS Dn
-            MOVE.B  #',',D3
-            BSR     PUSH_STACK          
             BSR     GET_EA_EA_SRC      *GETS <ea>
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK                  
+            BSR     GET_EA_EA_DEST       *GETS Dn    
+
             
             BRA     OP1101_ADD_RETURN
             
@@ -3496,6 +3500,7 @@ POINTER_WORD    DS.W       1
 * Ends program
 *---------------------------------------------------------------------------*
             END    START                    * last line of source
+
 
 
 
