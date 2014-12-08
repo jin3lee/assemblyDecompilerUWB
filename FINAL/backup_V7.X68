@@ -57,9 +57,47 @@ TESTING
             MOVE.B  D5,$3333
             MOVE.B  D6,$44444444
             
-
+            *MOVE.B  A1,D1           *NOT ALLOWED FOR BYTE SIZE OPERATION (CAN'T RUN THIS)
+            *MOVE.B  A2,(A2)
+            *MOVE.B  A3,(A3)+
+            *MOVE.B  A4,-(A4)
+            *MOVE.B  A5,$3333
+            *MOVE.B  A6,$44444444
             
+            MOVE.B  (A1),D1
+            MOVE.B  (A2),(A2)
+            MOVE.B  (A3),(A3)+
+            MOVE.B  (A4),-(A4)
+            MOVE.B  (A5),$3333
+            MOVE.B  (A6),$44444444
+             
+            MOVE.B  (A1)+,D1
+            MOVE.B  (A2)+,(A2)
+            MOVE.B  (A3)+,(A3)+
+            MOVE.B  (A4)+,-(A4)
+            MOVE.B  (A5)+,$3333
+            MOVE.B  (A6)+,$44444444
 
+            MOVE.B  -(A1),D1
+            MOVE.B  -(A2),(A2)
+            MOVE.B  -(A3),(A3)+
+            MOVE.B  -(A4),-(A4)
+            MOVE.B  -(A5),$3333
+            MOVE.B  -(A6),$44444444
+            
+            MOVE.B  $3331,D1
+            MOVE.B  $3332,(A2)
+            MOVE.B  $3333,(A3)+
+            MOVE.B  $3334,-(A4)
+            MOVE.B  $3335,$3333
+            MOVE.B  $3336,$44444444
+            
+            MOVE.B  $44444441 ,D1
+            MOVE.B  $44444442 ,(A2)
+            MOVE.B  $44444443 ,(A3)+
+            MOVE.B  $44444444 ,-(A4)
+            MOVE.B  $44444445 ,$3333
+            MOVE.B  $44444446 ,$44444444 
             
             RTS
 *---------------------------------------------------------------------------*
