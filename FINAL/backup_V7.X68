@@ -50,14 +50,21 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             TRAP    #15
             RTS
 TESTING
-            MOVEA.W  D1,A1
-            MOVEA.W  A2,A2   
-            MOVEA.W  (A3),A3
-            MOVEA.W  (A4)+,A4
-            MOVEA.W  -(A5),A5
-            MOVEA.W  $3331,A6
-            MOVEA.W  $44444441,A7
+            *ADD.B  D1,A1           *DOESN'T WORK WITH ADD.B, BUT WITH ADD.W/ADD.L IT DOES
+            *ADD.B  A2,D2           *DOESN'T WORK WITH ADD.B
+            ADD.B  (A3),D3
+            ADD.B  (A4)+,D4
+            ADD.B  -(A5),D5
+            ADD.B  $3331,D6
+            ADD.B  $44444441,D7
 
+            *ADD.B  A1,D1
+            *ADD.B  D2,A2   
+            ADD.B  D3,(A3)
+            ADD.B  D4,(A4)+
+            ADD.B  D5,-(A5)
+            ADD.B  D6,$3331
+            ADD.B  D7,$44444441
             
             RTS
 *---------------------------------------------------------------------------*
@@ -1441,22 +1448,206 @@ OP1101      CLR.L   D0
             CLR.L   D1       
             CLR.L   D4                   
             MOVEA.L #0, A1              
-            MOVE.L  D5,D1
-            ROR.L   #5,D1
-            ANDI.L  #$E,D1
-            CMPI.B  #$0,D1
-            BEQ     OP_ADD_B
-            CMPI.B  #$2,D1
-            BEQ     OP_ADD_W
-            CMPI.B  #$4,D1
-            BEQ     OP_ADD_L
-            CMPI.B  #$8,D1
-            BEQ     OP_ADD_B
-            CMPI.B  #$A,D1
-            BEQ     OP_ADD_W
-            CMPI.B  #$C,D1
-            BEQ     OP_ADD_L  
+            MOVE.L  D5,D1       *DATA TO BE PROCESS IN [D1], TRY TO GET OPMODE AND DETERMINE .B/.W/.L
             
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'M',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'O',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'V',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'E',D3                 *CHANGE PRINT
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+
+          
+OP1101_DETERMINE_DN_EA_OR_EA_DN 
+            MOVE.L  D5,D1       *GET CLEAN COPY OF DATA INTO [D1]      
+            
+            *BITS (INDEX 8) 
+            *0 = ADD.B/W/L <EA>,Dn
+            *1 = ADD.B/W/L Dn,<EA> 
+            ROR.L   #8,D1
+            ANDI.L  #$01,D1     *MASKS WITH 00000001
+            CMPI.L  #$00,D1     *IF EQUALS <ea>,Dn
+            BRA     OP1101_EA_DN
+            *else procede to Dn_EA
+            
+OP1101_DN_EA
+            *BITS (7 TO 6) 
+            *00 = .B
+            *01 = .W
+            *10 = .L 
+            MOVE.L  D5,D1       *GET CLEAN COPY OF DATA INTO [D1]  
+            ROR.L   #6,D1
+            ANDI.L  #$03,D1
+            CMPI.L  #$00,D1 *EQUALS .B
+            BEQ     OP1101_PRINT_B2
+            CMPI.L  #$01,D1 *EQUALS .W
+            BEQ     OP1101_PRINT_W2
+            CMPI.L  #$02,D1 *EQUALS .L
+            BEQ     OP1101_PRINT_L2
+OP1101_PRINT_B2
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+           
+            *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$02,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
+           MOVE.B   #$02,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
+           MOVE.B   #$20,GET_SRC_START_END
+
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$FFC7,D5   *inverse mask bits 5-3 with 1111(F[15]) 1111(F[15]) 1100(C[12]) 0111(7)
+            ADDI.L  #$0000,D5   *Add.B  BITS 5-3 TO INDICATE A Dn Register (000) 
+     
+            
+            BSR     GET_EA_EA_SRC       *GETS Dn
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK          
+            BSR     GET_EA_EA_DEST      *GETS <ea>
+            
+            BRA     OP1101_ADD_RETURN
+OP1101_PRINT_W2
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+
+            *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+            MOVE.B   #$02,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
+            MOVE.B   #$02,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+           
+            *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+            MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
+            MOVE.B   #$20,GET_SRC_START_END
+
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$FFC7,D5   *inverse mask bits 5-3 with 1111(F[15]) 1111(F[15]) 1100(C[12]) 0111(7)
+            ADDI.L  #$0000,D5   *Add.B  BITS 5-3 TO INDICATE A Dn Register (000) 
+      
+            
+            BSR     GET_EA_EA_SRC       *GETS Dn
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK          
+            BSR     GET_EA_EA_DEST      *GETS <ea>
+
+
+            BRA     OP1101_ADD_RETURN
+OP1101_PRINT_L2 
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            
+            *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+            MOVE.B   #$02,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
+            MOVE.B   #$02,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+           
+            *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+            MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
+            MOVE.B   #$20,GET_SRC_START_END
+
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$FFC7,D5   *inverse mask bits 5-3 with 1111(F[15]) 1111(F[15]) 1100(C[12]) 0111(7)
+            ADDI.L  #$0000,D5   *Add.B  BITS 5-3 TO INDICATE A Dn Register (000) 
+            
+            BSR     GET_EA_EA_SRC       *GETS Dn
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK          
+            BSR     GET_EA_EA_DEST      *GETS <ea>
+
+            BRA     OP1101_ADD_RETURN
+            
+OP1101_EA_DN           
+            *BITS (7 TO 6) 
+            *00 = .B
+            *01 = .W
+            *10 = .L 
+            MOVE.L  D5,D1       *GET CLEAN COPY OF DATA INTO [D1]  
+            ROR.L   #6,D1
+            ANDI.L  #$03,D1
+            CMPI.L  #$00,D1 *EQUALS .B
+            BEQ     OP1101_PRINT_B
+            CMPI.L  #$01,D1 *EQUALS .W
+            BEQ     OP1101_PRINT_W
+            CMPI.L  #$02,D1 *EQUALS .L
+            BEQ     OP1101_PRINT_L
+OP1101_PRINT_B
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+              
+            *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+            MOVE.B   #$02,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
+            MOVE.B   #$02,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+           
+            *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+            MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
+            MOVE.B   #$20,GET_SRC_START_END
+
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$FFC7,D5   *inverse mask bits 5-3 with 1111(F[15]) 1111(F[15]) 1100(C[12]) 0111(7)
+            ADDI.L  #$0000,D5   *Add.B  BITS 5-3 TO INDICATE A Dn Register (000) 
+            
+            BSR     GET_EA_EA_DEST       *GETS Dn
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK          
+            BSR     GET_EA_EA_SRC      *GETS <ea>
+            
+            BRA     OP1101_ADD_RETURN
+OP1101_PRINT_W
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+
+            *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+            MOVE.B   #$02,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
+            MOVE.B   #$02,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+           
+            *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+            MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
+            MOVE.B   #$20,GET_SRC_START_END
+
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$FFC7,D5   *inverse mask bits 5-3 with 1111(F[15]) 1111(F[15]) 1100(C[12]) 0111(7)
+            ADDI.L  #$0000,D5   *Add.B  BITS 5-3 TO INDICATE A Dn Register (000) 
+            
+            
+            BSR     GET_EA_EA_DEST       *GETS Dn
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK          
+            BSR     GET_EA_EA_SRC      *GETS <ea>
+            
+            BRA     OP1101_ADD_RETURN
+OP1101_PRINT_L 
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            
+            *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+            MOVE.B   #$02,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
+            MOVE.B   #$02,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+           
+            *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+            MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
+            MOVE.B   #$20,GET_SRC_START_END
+
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$FFC7,D5   *inverse mask bits 5-3 with 1111(F[15]) 1111(F[15]) 1100(C[12]) 0111(7)
+            ADDI.L  #$0000,D5   *Add.B  BITS 5-3 TO INDICATE A Dn Register (000) 
+                   
+            BSR     GET_EA_EA_DEST       *GETS Dn
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK          
+            BSR     GET_EA_EA_SRC      *GETS <ea>
+            
+            BRA     OP1101_ADD_RETURN
+            
+OP1101_ADD_RETURN
+            RTS
+            
+            *ADDW
             CMPI.B  #$6,D1
             BEQ     OP_ADDA_W
             CMPI.B  #$E,D1
