@@ -50,12 +50,22 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             TRAP    #15
             RTS
 TESTING
-            MOVE.B  D1,D0 
-            MOVE.B  (A0),D1
-            MOVE.B  (A0)+,D1
-            MOVE.B  -(A0),D1
-            MOVE.B  $7000,D1
-            MOVE.B  $00007000,D1
+            MOVE.B  $7000,$3333
+            MOVE.W  $7000,$3333
+            MOVE.L  $7000,$3333
+            
+            MOVE.B  $00007000,D1   
+            MOVE.W  $00007000,D1   
+            MOVE.L  $00007000,D1  
+          
+            MOVE.B  D1,$3030         
+            MOVE.W  D1,$3030         
+            MOVE.L  D1,$3030
+            
+            MOVE.B  D1,D0           * PASSED JUST SRC, NOT DEST
+            MOVE.B  (A0),D1         * PASSED JUST SRC, NOT DEST
+            MOVE.B  (A0)+,D1        * PASSED JUST SRC, NOT DEST
+            MOVE.B  -(A0),D1        * PASSED JUST SRC, NOT DEST
             
             RTS
 *---------------------------------------------------------------------------*
@@ -658,7 +668,7 @@ OP_MOVE_B
             BSR     GET_EA_EA_SRC
             MOVE.B  #',',D3
             BSR     PUSH_STACK
-            BSR     GET_EA_EA_DEST
+            *BSR     GET_EA_EA_DEST
             
             *TODO: NEEDS DEST EA TOO
             
@@ -2189,9 +2199,9 @@ CHECK0
           MOVE.B  SRC_REGISTER_FORMAT, D2                             *COPY FORMAT TO TEMP VARIABLE
           MOVE.B  D2, (A0)                                            *COPY FORMAT TO TEMP VARIABLE
           AND.B   #$01,TEMP_REGISTER_FORMAT                           * MASKS 0000 0001 
-          CMP.B   #$01,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 00000001) THAN INVALID ADDRESSMODE 
+          CMPI.B   #$01,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 00000001) THAN INVALID ADDRESSMODE 
           BEQ     CHECK1                                              * SINCE REGISTER FORMAT DOES NOT ALLOW "Dn" -> SO MOVE ON
-          CMP     #0,VAR_LONG_ADDRESS_MODE_CHECK                      * (Dn)
+          CMPI.L     #0,VAR_LONG_ADDRESS_MODE_CHECK                      * (Dn) - COMPARE MODES TO SEE IF IT IS THIS MODE
           BNE     CHECK1
           
           *PUSH "Dn" INTO STACK, BUT FIND MAKE SURE TO FIND "n"
@@ -2212,7 +2222,7 @@ CHECK0
           LEA     VAR_TEMP_CLEANCOPY,A0
           MOVE.L  VAR_TEMP_CLEANCOPY,D3
 LOOP_SHIFTING
-          CMP.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
+          CMPI.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
           BEQ     MASKING_NEXT              *IF SHIFTING FINISHED MOVE ON TO MASKING 
           LSR     #1,D3                     *SHIFT VAR_TEMP_CLEANCOPY UNTIL REGISTER IS COMPLETED
           SUB.B   #1,D2                     *DECREMENT COUNTER
@@ -2232,7 +2242,7 @@ CHECK1    LEA     TEMP_REGISTER_FORMAT,A0
           AND.B   #$02,TEMP_REGISTER_FORMAT                           * MASKS 0000 0010 
           CMP.B   #$02,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 00000010) THAN INVALID ADDRESSMODE 
           BEQ     CHECK2                                              * THE REGISTER FORMAT DOES NOT ALLOW "Dn" -> SO MOVE ON
-          CMP     #0,VAR_LONG_ADDRESS_MODE_CHECK                      * An
+          CMPI.L  #1,VAR_LONG_ADDRESS_MODE_CHECK                      * An - COMPARE MODES TO SEE IF IT IS THIS MODE
           BNE     CHECK2
           
           *PUSH "Dn" INTO STACK, BUT FIND MAKE SURE TO FIND "n"
@@ -2254,7 +2264,7 @@ CHECK1    LEA     TEMP_REGISTER_FORMAT,A0
           LEA     VAR_TEMP_CLEANCOPY,A0
           MOVE.L  VAR_TEMP_CLEANCOPY,D3
 LOOP_SHIFTING1
-          CMP.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
+          CMPI.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
           BEQ     MASKING_NEXT1              *IF SHIFTING FINISHED MOVE ON TO MASKING 
           LSR     #1,D3                     *SHIFT VAR_TEMP_CLEANCOPY UNTIL REGISTER IS COMPLETED
           SUB.B   #1,D2                     *DECREMENT COUNTER
@@ -2273,10 +2283,10 @@ MASKING_NEXT1
 CHECK2    LEA     TEMP_REGISTER_FORMAT,A0
           MOVE.B  SRC_REGISTER_FORMAT, D2                             *COPY FORMAT TO TEMP VARIABLE
           MOVE.B  D2, (A0)                                            *COPY FORMAT TO TEMP VARIABLE
-          AND.B   #$04,TEMP_REGISTER_FORMAT                           * MASKS 0000 0100                                                       *change <SRC>*
-          CMP.B   #$04,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 00000100) THAN INVALID ADDRESSMODE       *change <SRC>*
+          ANDI.B   #$04,TEMP_REGISTER_FORMAT                           * MASKS 0000 0100                                                       *change <SRC>*
+          CMPI.B   #$04,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 00000100) THAN INVALID ADDRESSMODE       *change <SRC>*
           BEQ     CHECK3                                              * THE REGISTER FORMAT DOES NOT ALLOW "Dn" -> SO MOVE ON               *change: checkx++*
-          CMP     #0,VAR_LONG_ADDRESS_MODE_CHECK                      * An                                                                  *change: checkx++*
+          CMPI.L   #2,VAR_LONG_ADDRESS_MODE_CHECK                      * (An)  COMPARE MODES TO SEE IF IT IS THIS MODE                                                                *change: checkx++*
           BNE     CHECK3
           
           *PUSH "Dn" INTO STACK, BUT FIND MAKE SURE TO FIND "n"                                            *change CHARS TO PUSH*
@@ -2300,14 +2310,14 @@ CHECK2    LEA     TEMP_REGISTER_FORMAT,A0
           LEA     VAR_TEMP_CLEANCOPY,A0
           MOVE.L  VAR_TEMP_CLEANCOPY,D3
 LOOP_SHIFTING2                                                                                              *change: NAME OF LABEL*
-          CMP.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
+          CMPI.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
           BEQ     MASKING_NEXT2             *IF SHIFTING FINISHED MOVE ON TO MASKING                        *change: NAME OF LABEL*
           LSR     #1,D3                     *SHIFT VAR_TEMP_CLEANCOPY UNTIL REGISTER IS COMPLETED
           SUB.B   #1,D2                     *DECREMENT COUNTER
           BRA     LOOP_SHIFTING2            *CONTINUE SHIFTING                                              *change: NAME OF LABEL*
 MASKING_NEXT2                                                                                               *change: NAME OF LABEL*
-          AND.L   #7,D3                     *MASK, ONLY NEED 0-2 BIT INDEXES
-          ADD.B   #$30,D3                   *CONVERT TO CHAR
+          ANDI.L   #7,D3                     *MASK, ONLY NEED 0-2 BIT INDEXES
+          ADDI.B   #$30,D3                   *CONVERT TO CHAR
           BSR     PUSH_STACK                *PUSH TO STACK
           
           MOVE.B    #')',D3                 *FINISH PUSHING LAST ')' INTO STACK
@@ -2322,10 +2332,10 @@ MASKING_NEXT2                                                                   
 CHECK3    LEA     TEMP_REGISTER_FORMAT,A0
           MOVE.B  SRC_REGISTER_FORMAT, D2                             *COPY FORMAT TO TEMP VARIABLE
           MOVE.B  D2, (A0)                                            *COPY FORMAT TO TEMP VARIABLE
-          AND.B   #$08,TEMP_REGISTER_FORMAT                           * MASKS 0000 1000                                                     *change <SRC>*
-          CMP.B   #$08,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 00000010) THAN INVALID ADDRESSMODE       *change <SRC>*
+          ANDI.B  #$08,TEMP_REGISTER_FORMAT                           * MASKS 0000 1000                                                     *change <SRC>*
+          CMPI.B  #$08,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 00000010) THAN INVALID ADDRESSMODE       *change <SRC>*
           BEQ     CHECK4                                              * THE REGISTER FORMAT DOES NOT ALLOW "Dn" -> SO MOVE ON               *change: checkx++*
-          CMP     #0,VAR_LONG_ADDRESS_MODE_CHECK                      * An                                                                  *change: checkx++*
+          CMPI.L  #3,VAR_LONG_ADDRESS_MODE_CHECK                      * (An)+ - COMPARE MODES TO SEE IF IT IS THIS MODE                                                                  *change: checkx++*
           BNE     CHECK4
           
           *PUSH "Dn" INTO STACK, BUT FIND MAKE SURE TO FIND "n"                                            *change CHARS TO PUSH*
@@ -2339,7 +2349,7 @@ CHECK3    LEA     TEMP_REGISTER_FORMAT,A0
           
           *FIND REGISTER NUMBER END LOCATION*  
           MOVE.B  GET_SRC_START_END, VAR_BYTE_END * GET ENDING INDEX
-          AND.B   #$0F,VAR_BYTE_END
+          ANDI.B   #$0F,VAR_BYTE_END
           
           *GET INDEX OF THE END OF SRC REGISTER NUMBER
           MOVE.L  D5,VAR_TEMP_CLEANCOPY     *COPY DATA
@@ -2350,15 +2360,15 @@ CHECK3    LEA     TEMP_REGISTER_FORMAT,A0
           MOVE.L  VAR_TEMP_CLEANCOPY,D3
           
 LOOP_SHIFTING3                                                                                              *change: NAME OF LABEL*
-          CMP.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
+          CMPI.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
           BEQ     MASKING_NEXT3             *IF SHIFTING FINISHED MOVE ON TO MASKING                        *change: NAME OF LABEL*
           LSR     #1,D3                     *SHIFT VAR_TEMP_CLEANCOPY UNTIL REGISTER IS COMPLETED
-          SUB.B   #1,D2                     *DECREMENT COUNTER
+          SUBI.B   #1,D2                     *DECREMENT COUNTER
           BRA     LOOP_SHIFTING3            *CONTINUE SHIFTING 
                                              *change: NAME OF LABEL*
 MASKING_NEXT3                                                                                               *change: NAME OF LABEL*
-          AND.L   #7,D3                     *MASK, ONLY NEED 0-2 BIT INDEXES
-          ADD.B   #$30,D3                   *CONVERT TO CHAR
+          ANDI.L   #7,D3                     *MASK, ONLY NEED 0-2 BIT INDEXES
+          ADDI.B   #$30,D3                   *CONVERT TO CHAR
           BSR     PUSH_STACK                *PUSH TO STACK
           
           MOVE.B    #')',D3                 *FINISH PUSHING LAST ')' INTO STACK
@@ -2375,10 +2385,10 @@ MASKING_NEXT3                                                                   
 CHECK4    LEA     TEMP_REGISTER_FORMAT,A0
           MOVE.B  SRC_REGISTER_FORMAT, D2                             *COPY FORMAT TO TEMP VARIABLE
           MOVE.B  D2, (A0)                                            *COPY FORMAT TO TEMP VARIABLE
-          AND.B   #$10,TEMP_REGISTER_FORMAT                           * MASKS 0001 0000                                                     *change <SRC>*
-          CMP.B   #$10,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 0001 0000) THAN INVALID ADDRESSMODE       *change <SRC>*
+          ANDI.B  #$10,TEMP_REGISTER_FORMAT                           * MASKS 0001 0000                                                     *change <SRC>*
+          CMPI.B  #$10,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 0001 0000) THAN INVALID ADDRESSMODE       *change <SRC>*
           BEQ     CHECK7                                              * THE REGISTER FORMAT DOES NOT ALLOW "Dn" -> SO MOVE ON               *change: checkx++*
-          CMP     #0,VAR_LONG_ADDRESS_MODE_CHECK                      * An                                                                  *change: checkx++*
+          CMPI.L  #4,VAR_LONG_ADDRESS_MODE_CHECK                      * -(An) - COMPARE MODES TO SEE IF IT IS THIS MODE                                                                  *change: checkx++*
           BNE     CHECK7
           
           *PUSH "Dn" INTO STACK, BUT FIND MAKE SURE TO FIND "n"                                            *change CHARS TO PUSH*
@@ -2405,15 +2415,15 @@ CHECK4    LEA     TEMP_REGISTER_FORMAT,A0
           MOVE.L  VAR_TEMP_CLEANCOPY,D3
           
 LOOP_SHIFTING4                                                                                              *change: NAME OF LABEL*
-          CMP.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
+          CMPI.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
           BEQ     MASKING_NEXT4             *IF SHIFTING FINISHED MOVE ON TO MASKING                        *change: NAME OF LABEL*
           LSR     #1,D3                     *SHIFT VAR_TEMP_CLEANCOPY UNTIL REGISTER IS COMPLETED
-          SUB.B   #1,D2                     *DECREMENT COUNTER
+          SUBI.B   #1,D2                     *DECREMENT COUNTER
           BRA     LOOP_SHIFTING4            *CONTINUE SHIFTING 
                                              *change: NAME OF LABEL*
 MASKING_NEXT4                                                                                               *change: NAME OF LABEL*
-          AND.L   #7,D3                     *MASK, ONLY NEED 0-2 BIT INDEXES
-          ADD.B   #$30,D3                   *CONVERT TO CHAR
+          ANDI.L   #7,D3                     *MASK, ONLY NEED 0-2 BIT INDEXES
+          ADDI.B   #$30,D3                   *CONVERT TO CHAR
           BSR     PUSH_STACK                *PUSH TO STACK
           
           MOVE.B    #')',D3                 *FINISH PUSHING LAST ')' INTO STACK
@@ -2423,11 +2433,11 @@ MASKING_NEXT4                                                                   
           
                     
           *** Check if source ...  <ea> = (XXX).W or (XXX).L or #<data>
-CHECK7    CMP     #7,VAR_LONG_ADDRESS_MODE_CHECK               * (Dn)
+CHECK7    CMPI     #7,VAR_LONG_ADDRESS_MODE_CHECK               * (Dn)
           BNE     GET_SRC_FAILED
           
           *JUST DISPLAYS ADDRESS MODE 111 FOR TESTING PURPOSE
-          MOVE.L  #'7',D3
+          MOVE.L  #'F',D3
           BSR     PUSH_STACK          
       
        *   MOVE.B  DEST_REGISTER_FORMAT, TEMP_REGISTER_FORMAT * COPY FORMAT TO TEMP VARIABLE
@@ -2465,310 +2475,8 @@ GET_SRC_SUCCESS
 
 
 
+GET_EA_EA_DEST
 
-
-            
-GET_EA_EA_DEST                                                  *======================GET_EA_EA_DEST==========================*
-*PRECONDITION: 16 BIT DECODE DATA MUST BE IN REGISTER [D5]*
-    
-    *DETERMINE ADDRESS MODE OF EA WITH THE MODE CODE 
-    MOVE.L  D5,D2                           * CLEAN COPY TO D2
-    LSR.L   #3,D2                           * [D2] Temporarily used D2 for shifting bits
-    MOVE.L  D2,VAR_LONG_ADDRESS_MODE_CHECK  * BITS SHIFTED
-    MOVE.L  #7,D2                           * SETTING UP MASKING FOR BITS (0-2)
-    AND.L   D2,VAR_LONG_ADDRESS_MODE_CHECK  * MASKED VARIABLE HOLDING ADDRESS MODE TO COMPARE
-                                            * [COMPARE] MODE WITH POSSIBLE ADDRESS MODES
-    
-    *MUST SET DESTINATION_REGISTER_FORMAT BEFORE CALLING GET_EA_EA_SRC
-    *DESTINATION REGISTER FORMAT STANDARD         *
-    *WHEN BIT = 1(INVALID ADDRESS MODE)           *
-    *WHEN BIT = 0(VALID ADDRESS MODE)             *
-    *BIT LOCATIONS 0-7 INDICATE ADDRESS MODES     *
-    *0 - Dn                                       *
-    *1 - An                                       *
-    *2 - (An)                                     *
-    *3 - (An)+                                    *
-    *4 - -(An)                                    *
-    *5 - (XXX).W                                  *
-    *6 - (XXX).L                                  *
-    *7 - #<data>                                  *
-    ***********************************************
-    
-    *** Check if source ...  <ea> = Dn
-DEST_CHECK0    
-          LEA     TEMP_REGISTER_FORMAT,A0
-          MOVE.B  DEST_REGISTER_FORMAT, D2                            * COPY FORMAT TO TEMP VARIABLE
-          MOVE.B  D2, (A0)                                            * COPY FORMAT TO TEMP VARIABLE
-          AND.B   #$01,TEMP_REGISTER_FORMAT                           * MASKS 0000 0001 
-          CMP.B   #$01,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 00000001) THAN INVALID ADDRESSMODE 
-          BEQ     DEST_CHECK1                                              * SINCE REGISTER FORMAT DOES NOT ALLOW "Dn" -> SO MOVE ON
-          CMP     #0,VAR_LONG_ADDRESS_MODE_CHECK                      * (Dn)
-          BNE     DEST_CHECK1
-          
-          *PUSH "Dn" INTO STACK, BUT FIND MAKE SURE TO FIND "n"
-          MOVE.B    #' ',D3
-          BSR       PUSH_STACK
-          MOVE.B    #'D',D3
-          BSR       PUSH_STACK
-
-          *FIND REGISTER NUMBER END LOCATION*  
-          MOVE.B  GET_DST_START_END, VAR_BYTE_END * GET ENDING INDEX
-          AND.B   #$0F,VAR_BYTE_END
-          
-          *GET INDEX OF THE END OF SRC REGISTER NUMBER
-          MOVE.L  D5,VAR_TEMP_CLEANCOPY     *COPY DATA
-          MOVE.B  VAR_BYTE_END,D2          *PUT END LOCATION INTO D2
-          
-          *INTITIALIZE FOR BIT SHIFTING
-          LEA     VAR_TEMP_CLEANCOPY,A0
-          MOVE.L  VAR_TEMP_CLEANCOPY,D3
-DEST_LOOP_SHIFTING
-          CMP.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
-          BEQ     MASKING_NEXT              *IF SHIFTING FINISHED MOVE ON TO MASKING 
-          LSR     #1,D3                     *SHIFT VAR_TEMP_CLEANCOPY UNTIL REGISTER IS COMPLETED
-          SUB.B   #1,D2                     *DECREMENT COUNTER
-          BRA     LOOP_SHIFTING             *CONTINUE SHIFTING
-DEST_MASKING_NEXT
-          AND.L   #7,D3                     *MASK, ONLY NEED 0-2 BIT INDEXES
-          ADD.B   #$30,D3                   *CONVERT TO CHAR
-          BSR     PUSH_STACK                *PUSH TO STACK
-          
-          BRA     GET_DEST_SUCCESS           *RETURN          
-          
-          
-          *** Check if source ...  <ea> = An
-DEST_CHECK1    
-          LEA     TEMP_REGISTER_FORMAT,A0
-          MOVE.B  DEST_REGISTER_FORMAT, D2                             *COPY FORMAT TO TEMP VARIABLE
-          MOVE.B  D2, (A0)                                            *COPY FORMAT TO TEMP VARIABLE
-          AND.B   #$02,TEMP_REGISTER_FORMAT                           * MASKS 0000 0010 
-          CMP.B   #$02,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 00000010) THAN INVALID ADDRESSMODE 
-          BEQ     DEST_CHECK2                                              * THE REGISTER FORMAT DOES NOT ALLOW "Dn" -> SO MOVE ON
-          CMP     #0,VAR_LONG_ADDRESS_MODE_CHECK                      * An
-          BNE     DEST_CHECK2
-          
-          *PUSH "Dn" INTO STACK, BUT FIND MAKE SURE TO FIND "n"
-          MOVE.B    #' ',D3
-          BSR       PUSH_STACK
-          MOVE.B    #'A',D3
-          BSR       PUSH_STACK
-
-          
-          *FIND REGISTER NUMBER END LOCATION*  
-          MOVE.B  GET_DST_START_END, VAR_BYTE_END * GET ENDING INDEX
-          AND.B   #$0F,VAR_BYTE_END
-          
-          *GET INDEX OF THE END OF SRC REGISTER NUMBER
-          MOVE.L  D5,VAR_TEMP_CLEANCOPY     *COPY DATA
-          MOVE.B  VAR_BYTE_END,D2           *PUT END LOCATION INTO D2
-          
-          *INTITIALIZE FOR BIT SHIFTING
-          LEA     VAR_TEMP_CLEANCOPY,A0
-          MOVE.L  VAR_TEMP_CLEANCOPY,D3
-DEST_LOOP_SHIFTING1
-          CMP.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
-          BEQ     DEST_MASKING_NEXT1              *IF SHIFTING FINISHED MOVE ON TO MASKING 
-          LSR     #1,D3                     *SHIFT VAR_TEMP_CLEANCOPY UNTIL REGISTER IS COMPLETED
-          SUB.B   #1,D2                     *DECREMENT COUNTER
-          BRA     DEST_LOOP_SHIFTING1             *CONTINUE SHIFTING
-DEST_MASKING_NEXT1
-          AND.L   #7,D3                     *MASK, ONLY NEED 0-2 BIT INDEXES
-          ADD.B   #$30,D3                   *CONVERT TO CHAR
-          BSR     PUSH_STACK                *PUSH TO STACK
-          
-          BRA     GET_DEST_SUCCESS                   *RETURN 
-          
-          
-          
-          
-          *** Check if source ...  <ea> = (An)       
-DEST_CHECK2    
-          LEA     TEMP_REGISTER_FORMAT,A0
-          MOVE.B  DEST_REGISTER_FORMAT, D2                             *COPY FORMAT TO TEMP VARIABLE
-          MOVE.B  D2, (A0)                                            *COPY FORMAT TO TEMP VARIABLE
-          AND.B   #$04,TEMP_REGISTER_FORMAT                           * MASKS 0000 0100                                                       
-          CMP.B   #$04,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 00000100) THAN INVALID ADDRESSMODE       
-          BEQ     DEST_CHECK3                                              * THE REGISTER FORMAT DOES NOT ALLOW "Dn" -> SO MOVE ON            
-          CMP     #0,VAR_LONG_ADDRESS_MODE_CHECK                      * An                                                                
-          BNE     DEST_CHECK3
-          
-          *PUSH "Dn" INTO STACK, BUT FIND MAKE SURE TO FIND "n"                                            *change CHARS TO PUSH*
-          MOVE.B    #' ',D3
-          BSR       PUSH_STACK
-          MOVE.B    #'(',D3
-          BSR       PUSH_STACK
-          MOVE.B    #'A',D3
-          BSR       PUSH_STACK
-
-          
-          *FIND REGISTER NUMBER END LOCATION*  
-          MOVE.B  GET_DST_START_END, VAR_BYTE_END * GET ENDING INDEX
-          AND.B   #$0F,VAR_BYTE_END
-          
-          *GET INDEX OF THE END OF SRC REGISTER NUMBER
-          MOVE.L  D5,VAR_TEMP_CLEANCOPY     *COPY DATA
-          MOVE.B  VAR_BYTE_END,D2          *PUT END LOCATION INTO D2
-          
-          *INTITIALIZE FOR BIT SHIFTING
-          LEA     VAR_TEMP_CLEANCOPY,A0
-          MOVE.L  VAR_TEMP_CLEANCOPY,D3
-DEST_LOOP_SHIFTING2                                                                                              
-          CMP.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
-          BEQ     DEST_MASKING_NEXT2             *IF SHIFTING FINISHED MOVE ON TO MASKING                        
-          LSR     #1,D3                     *SHIFT VAR_TEMP_CLEANCOPY UNTIL REGISTER IS COMPLETED
-          SUB.B   #1,D2                     *DECREMENT COUNTER
-          BRA     DEST_LOOP_SHIFTING2            *CONTINUE SHIFTING                                              
-DEST_MASKING_NEXT2                                                                                               
-          AND.L   #7,D3                     *MASK, ONLY NEED 0-2 BIT INDEXES
-          ADD.B   #$30,D3                   *CONVERT TO CHAR
-          BSR     PUSH_STACK                *PUSH TO STACK
-          
-          MOVE.B    #')',D3                 *FINISH PUSHING LAST ')' INTO STACK
-          BSR       PUSH_STACK
-          
-          BRA     GET_DEST_SUCCESS                   *RETURN 
-
-          
-          
-                    
-*** Check if source ...  <ea> = (An)+       
-DEST_CHECK3    
-          LEA     TEMP_REGISTER_FORMAT,A0
-          MOVE.B  DEST_REGISTER_FORMAT, D2                             *COPY FORMAT TO TEMP VARIABLE
-          MOVE.B  D2, (A0)                                            *COPY FORMAT TO TEMP VARIABLE
-          AND.B   #$08,TEMP_REGISTER_FORMAT                           * MASKS 0000 1000                                                     *change <SRC>*
-          CMP.B   #$08,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 00000010) THAN INVALID ADDRESSMODE       *change <SRC>*
-          BEQ     DEST_CHECK4                                              * THE REGISTER FORMAT DOES NOT ALLOW "Dn" -> SO MOVE ON               *change: checkx++*
-          CMP     #0,VAR_LONG_ADDRESS_MODE_CHECK                      * An                                                                  *change: checkx++*
-          BNE     DEST_CHECK4
-          
-          *PUSH "Dn" INTO STACK, BUT FIND MAKE SURE TO FIND "n"                                            *change CHARS TO PUSH*
-          MOVE.B    #' ',D3
-          BSR       PUSH_STACK
-          MOVE.B    #'(',D3
-          BSR       PUSH_STACK
-          MOVE.B    #'A',D3
-          BSR       PUSH_STACK
-
-          
-          *FIND REGISTER NUMBER END LOCATION*  
-          MOVE.B  GET_DST_START_END, VAR_BYTE_END * GET ENDING INDEX
-          AND.B   #$0F,VAR_BYTE_END
-          
-          *GET INDEX OF THE END OF SRC REGISTER NUMBER
-          MOVE.L  D5,VAR_TEMP_CLEANCOPY     *COPY DATA
-          MOVE.B  VAR_BYTE_END,D2          *PUT END LOCATION INTO D2
-          
-          *INTITIALIZE FOR BIT SHIFTING
-          LEA     VAR_TEMP_CLEANCOPY,A0
-          MOVE.L  VAR_TEMP_CLEANCOPY,D3
-          
-DEST_LOOP_SHIFTING3                                                                                            
-          CMP.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
-          BEQ     DEST_MASKING_NEXT3             *IF SHIFTING FINISHED MOVE ON TO MASKING                        
-          LSR     #1,D3                     *SHIFT VAR_TEMP_CLEANCOPY UNTIL REGISTER IS COMPLETED
-          SUB.B   #1,D2                     *DECREMENT COUNTER
-          BRA     DEST_LOOP_SHIFTING3            *CONTINUE SHIFTING 
-                                             *change: NAME OF LABEL*
-DEST_MASKING_NEXT3                                                                                            
-          AND.L   #7,D3                     *MASK, ONLY NEED 0-2 BIT INDEXES
-          ADD.B   #$30,D3                   *CONVERT TO CHAR
-          BSR     PUSH_STACK                *PUSH TO STACK
-          
-          MOVE.B    #')',D3                 *FINISH PUSHING LAST ')' INTO STACK
-          BSR       PUSH_STACK
-          MOVE.B    #'+',D3                 *FINISH PUSHING LAST ')' INTO STACK
-          BSR       PUSH_STACK
-          
-          BRA       GET_DEST_SUCCESS                   *RETURN 
-
-          
-          
-                    
-          *** Check if source ...  <ea> = -(An)       
-DEST_CHECK4    LEA     TEMP_REGISTER_FORMAT,A0
-          MOVE.B  DEST_REGISTER_FORMAT, D2                             *COPY FORMAT TO TEMP VARIABLE
-          MOVE.B  D2, (A0)                                            *COPY FORMAT TO TEMP VARIABLE
-          AND.B   #$10,TEMP_REGISTER_FORMAT                           * MASKS 0001 0000                                                     *change <SRC>*
-          CMP.B   #$10,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 0001 0000) THAN INVALID ADDRESSMODE       *change <SRC>*
-          BEQ     CHECK7                                              * THE REGISTER FORMAT DOES NOT ALLOW "Dn" -> SO MOVE ON               *change: checkx++*
-          CMP     #0,VAR_LONG_ADDRESS_MODE_CHECK                      * An                                                                  *change: checkx++*
-          BNE     CHECK7
-          
-          *PUSH "Dn" INTO STACK, BUT FIND MAKE SURE TO FIND "n"                                            
-          MOVE.B    #' ',D3
-          BSR       PUSH_STACK
-          MOVE.B    #'-',D3
-          BSR       PUSH_STACK
-          MOVE.B    #'(',D3
-          BSR       PUSH_STACK
-          MOVE.B    #'A',D3
-          BSR       PUSH_STACK
-
-          
-          *FIND REGISTER NUMBER END LOCATION*  
-          MOVE.B  GET_DST_START_END, VAR_BYTE_END * GET ENDING INDEX
-          AND.B   #$0F,VAR_BYTE_END
-          
-          *GET INDEX OF THE END OF SRC REGISTER NUMBER
-          MOVE.L  D5,VAR_TEMP_CLEANCOPY     *COPY DATA
-          MOVE.B  VAR_BYTE_END,D2          *PUT END LOCATION INTO D2
-          
-          *INTITIALIZE FOR BIT SHIFTING
-          LEA     VAR_TEMP_CLEANCOPY,A0
-          MOVE.L  VAR_TEMP_CLEANCOPY,D3
-          
-DEST_LOOP_SHIFTING4                                                                                              
-          CMP.B   #0,D2                     *D2 - ACTS AS COUNTER TO HOW MANY SHIFTS TAKE PLACE
-          BEQ     DEST_MASKING_NEXT4             *IF SHIFTING FINISHED MOVE ON TO MASKING                        
-          LSR     #1,D3                     *SHIFT VAR_TEMP_CLEANCOPY UNTIL REGISTER IS COMPLETED
-          SUB.B   #1,D2                     *DECREMENT COUNTER
-          BRA     DEST_LOOP_SHIFTING4            *CONTINUE SHIFTING 
-                                             *change: NAME OF LABEL*
-DEST_MASKING_NEXT4                                                                                               
-          AND.L   #7,D3                     *MASK, ONLY NEED 0-2 BIT INDEXES
-          ADD.B   #$30,D3                   *CONVERT TO CHAR
-          BSR     PUSH_STACK                *PUSH TO STACK
-          
-          MOVE.B    #')',D3                 *FINISH PUSHING LAST ')' INTO STACK
-          BSR       PUSH_STACK
-          
-          BRA     GET_DEST_SUCCESS                   *RETURN
-          
-                    
-                
-*** Check if source ...  <ea> = (XXX).W or (XXX).L or #<data>
-DEST_CHECK7    
-               CMP     #7,VAR_LONG_ADDRESS_MODE_CHECK               * (Dn)
-               BNE     GET_SRC_FAILED
-          
-          *JUST DISPLAYS ADDRESS MODE 111 FOR TESTING PURPOSE
-          MOVE.L  #'7',D3
-          BSR     PUSH_STACK          
-      
-       *   MOVE.B  DEST_REGISTER_FORMAT, TEMP_REGISTER_FORMAT * COPY FORMAT TO TEMP VARIABLE
-       *   AND.B   #$E0,TEMP_REGISTER_FORMAT                           * MASKS 11100000
-       *   CMP.B   #$10,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT >= 11100000) THAN INVALID ADDRESSMODE 
-       *   BEQ     FAILED                                            * THE REGISTER FORMAT DOES NOT ALLOW "-(An)" -> SO MOVE ON
-          
-       *   MOVE.B  DEST_REGISTER_FORMAT, TEMP_REGISTER_FORMAT * COPY FORMAT TO TEMP VARIABLE
-       *   AND.B   #$E0,TEMP_REGISTER_FORMAT                           * MASKS 11100000
-       *   CMP.B   #$10,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT >= 11100000) THAN INVALID ADDRESSMODE 
-        *  BEQ     FAILED                                            * THE REGISTER FORMAT DOES NOT ALLOW "-(An)" -> SO MOVE ON
-   
-DEST_CHECK_WORD
-DEST_CHECK_LONG
-DEST_CHECK_IMMEDIATE
-          
-          *EA_EA_GET_SRC INTO D3
-          BRA     GET_DEST_SUCCESS
-          
-GET_DEST_FAILED    *SEND ERROR FLAG THAN CLEAN ALL REGISTERS/VARIABLES THAN PRINT OP_DATA
-          MOVE.L #1,D4
-          RTS
-GET_DEST_SUCCESS 
-          RTS
-          
 *---------------------------------------------------------------------------*
 * STACK/QUEUE INTERFACE
 *---------------------------------------------------------------------------*
@@ -3038,6 +2746,7 @@ DISP_INDENT  DC.B    '   ',0
 * Ends program
 *---------------------------------------------------------------------------*
             END    START                    * last line of source
+
 
 
 
