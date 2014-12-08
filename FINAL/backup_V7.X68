@@ -50,54 +50,14 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             TRAP    #15
             RTS
 TESTING
-            MOVE.B  D1,D1
-            MOVE.B  D2,(A2)
-            MOVE.B  D3,(A3)+
-            MOVE.B  D4,-(A4)
-            MOVE.B  D5,$3333
-            MOVE.B  D6,$44444444
-            
-            *MOVE.B  A1,D1           *NOT ALLOWED FOR BYTE SIZE OPERATION (CAN'T RUN THIS)
-            *MOVE.B  A2,(A2)
-            *MOVE.B  A3,(A3)+
-            *MOVE.B  A4,-(A4)
-            *MOVE.B  A5,$3333
-            *MOVE.B  A6,$44444444
-            
-            MOVE.B  (A1),D1
-            MOVE.B  (A2),(A2)
-            MOVE.B  (A3),(A3)+
-            MOVE.B  (A4),-(A4)
-            MOVE.B  (A5),$3333
-            MOVE.B  (A6),$44444444
-             
-            MOVE.B  (A1)+,D1
-            MOVE.B  (A2)+,(A2)
-            MOVE.B  (A3)+,(A3)+
-            MOVE.B  (A4)+,-(A4)
-            MOVE.B  (A5)+,$3333
-            MOVE.B  (A6)+,$44444444
+            MOVEA.W  D1,A1
+            MOVEA.W  A2,A2   
+            MOVEA.W  (A3),A3
+            MOVEA.W  (A4)+,A4
+            MOVEA.W  -(A5),A5
+            MOVEA.W  $3331,A6
+            MOVEA.W  $44444441,A7
 
-            MOVE.B  -(A1),D1
-            MOVE.B  -(A2),(A2)
-            MOVE.B  -(A3),(A3)+
-            MOVE.B  -(A4),-(A4)
-            MOVE.B  -(A5),$3333
-            MOVE.B  -(A6),$44444444
-            
-            MOVE.B  $3331,D1
-            MOVE.B  $3332,(A2)
-            MOVE.B  $3333,(A3)+
-            MOVE.B  $3334,-(A4)
-            MOVE.B  $3335,$3333
-            MOVE.B  $3336,$44444444
-            
-            MOVE.B  $44444441 ,D1
-            MOVE.B  $44444442 ,(A2)
-            MOVE.B  $44444443 ,(A3)+
-            MOVE.B  $44444444 ,-(A4)
-            MOVE.B  $44444445 ,$3333
-            MOVE.B  $44444446 ,$44444444 
             
             RTS
 *---------------------------------------------------------------------------*
@@ -733,9 +693,6 @@ OP_MOVE_B
             MOVE.B  #',',D3
             BSR     PUSH_STACK
             BSR     GET_EA_EA_DEST
-            *BSR     GET_EA_EA_DEST
-            
-            *TODO: NEEDS DEST EA TOO
             
             RTS
             
@@ -762,27 +719,77 @@ OP0010
 * OP_MOVE_L: display MOVE_L and proceed to EA
 *---------------------------------------------------------------------------*
 OP_MOVE_L   
-            MOVE.B  #2,D4
-            MOVEA.L #0, A1
-            LEA     DISP_MOVE_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
+           *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$82,DEST_REGISTER_FORMAT
+           MOVE.B   #$00,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END
+           MOVE.B   #$20,GET_SRC_START_END
+           
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'M',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'O',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'V',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'E',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
             
-            JSR     EA_GEN
+            BSR     GET_EA_EA_SRC
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_DEST
+            
             RTS
+
 
 *---------------------------------------------------------------------------*
 * OP_MOVEA_L: display MOVEA_L and proceed to EA
 *---------------------------------------------------------------------------*
 OP_MOVEA_L 
-            MOVE.B  #2,D4
-            MOVEA.L #0, A1
-            LEA     DISP_MOVEA_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            JMP     EA_MOVEA
-
+           *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$FD,DEST_REGISTER_FORMAT
+           MOVE.B   #$00,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END
+           MOVE.B   #$20,GET_SRC_START_END
+           
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'M',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'O',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'V',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'E',D3
+            BSR     PUSH_STACK           
+            MOVE.B  #'A',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            
+            BSR     GET_EA_EA_SRC
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_DEST
+            
             RTS
+
             
 *---------------------------------------------------------------------------*
 * OP0011: decode MOVE.W/MOVEA.W
@@ -791,11 +798,12 @@ OP0011
             CLR.L   D0                      
             CLR.L   D1  
             CLR.L   D4                   
-            MOVEA.L #0, A1               
+            MOVEA.L #0, A1 
+              
             MOVE.L  D5,D1
-            ROR.L   #5,D1
-            ANDI.L  #$E,D1
-            CMPI.B  #2,D1
+            ROR.L   #6,D1
+            ANDI.L  #$07,D1
+            CMPI.B  #1,D1
             BEQ     OP_MOVEA_W
             
             JMP     OP_MOVE_W
@@ -804,28 +812,75 @@ OP0011
 * OP_MOVE_W: display MOVE_W and proceed to EA
 *---------------------------------------------------------------------------*
 OP_MOVE_W   
-            MOVE.B  #1,D4
-            MOVEA.L #0, A1
-            LEA     DISP_MOVE_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            JMP     EA_GEN
-
+           *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$82,DEST_REGISTER_FORMAT
+           MOVE.B   #$00,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END
+           MOVE.B   #$20,GET_SRC_START_END
+           
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'M',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'O',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'V',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'E',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+            
+            BSR     GET_EA_EA_SRC
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_DEST
+            
             RTS
 
 *---------------------------------------------------------------------------*
 * OP_MOVEA_W: display MOVEA and proceed to EA
 *---------------------------------------------------------------------------*
 OP_MOVEA_W 
-            MOVE.B  #1,D4
-            MOVEA.L #0, A1
-            LEA     DISP_MOVEA_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            JMP     EA_MOVEA
-
-            RTS
+           *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$FD,DEST_REGISTER_FORMAT
+           MOVE.B   #$00,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END
+           MOVE.B   #$20,GET_SRC_START_END
+           
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'M',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'O',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'V',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'E',D3
+            BSR     PUSH_STACK           
+            MOVE.B  #'A',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+            
+            BSR     GET_EA_EA_SRC
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_DEST
           
+            RTS
 *---------------------------------------------------------------------------*
 * OP0100: decode MOVEM/LEA/NEG/JSR/RTS/NOT
 *---------------------------------------------------------------------------*
