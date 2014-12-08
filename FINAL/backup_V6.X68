@@ -50,6 +50,10 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             TRAP    #15
             RTS
 TESTING
+            MOVE.B  #$70,$3333
+            MOVE.B  #150,$3333
+            MOVE.B  #255,$3333
+            
             MOVE.B  $7000,$3333
             MOVE.W  $7000,$3333
             MOVE.L  $7000,$3333
@@ -257,6 +261,38 @@ HEX_CONT    MOVE.B  D3, (A1)+               * Place into A1
             BNE     HEX_LOOP                * Loop
             MOVE.B  #$0,(A1)                * Null terminator
             RTS
+*---------------------------------------------------------------------------*
+* HEX2ASCII2STACK: Convert Hexadecimal to ASCii 
+* Reserved registers: A1 = Destination, D1 = Source, D2 = Size, D7 = Byte
+*---------------------------------------------------------------------------*
+HEX2ASCII2STACK
+            CMPI.B  #8, D2                  * Check to see if the size is long
+            BEQ     STACK_HEX_LOOP
+            SWAP    D1
+            CMPI.B  #2,D2
+            BNE     STACK_HEX_LOOP
+            LSL.L   #8,D1
+           
+STACK_HEX_LOOP    
+            ROL.L   #4, D1                  * Roll D1 to left
+            MOVE.L  D1, D3                  * Move D1 to D3
+            ANDI.L  #$F,D3                  * Retrieve the right most 4 bits
+            CMPI.B  #9, D3                  * Compare te digit
+            BGT     STACK_HEX_CHAR              
+            ADDI.B  #48,D3                  * Add 48 for numerical output
+            BRA     STACK_HEX_CONT
+            
+STACK_HEX_CHAR    
+            ADDI.B  #55,D3                  * Add 55 for character output
+
+STACK_HEX_CONT    
+            BSR     PUSH_STACK              *PLACE INTO STACK
+            SUBI    #1, D2                  * Decrement the size
+            CMPI.B  #0, D2                  * Check if D2 is 0
+            BNE     STACK_HEX_LOOP                * Loop
+            MOVE.B  #$0,(A1)                * Null terminator
+            RTS
+
 
 *---------------------------------------------------------------------------*
 * IS_ODD: Check whether the source address is odd
@@ -2433,33 +2469,69 @@ MASKING_NEXT4                                                                   
           
                     
           *** Check if source ...  <ea> = (XXX).W or (XXX).L or #<data>
-CHECK7    CMPI     #7,VAR_LONG_ADDRESS_MODE_CHECK               * (Dn)
-          BNE     GET_SRC_FAILED
+CHECK7    CMPI.L  #7,VAR_LONG_ADDRESS_MODE_CHECK                      *IF (MODE != 111)
+          BNE     GET_SRC_FAILED                                      *THAN BRANCH TO UNCESSFULL SRC MODE READ
+                 
+          *NEXT: (MODE == 111) 
+          *NOW: CHECK FOR SRC REGISTER 
+                *(000 = (xxx).W)
+                *(001 = (xxx).L)
+                *(010 = #<data>)
+CHECK_WORD  
+          LEA     TEMP_REGISTER_FORMAT,A0
+          MOVE.B  SRC_REGISTER_FORMAT, D2                             *COPY FORMAT TO TEMP VARIABLE
+          MOVE.B  D2, (A0)                                            *COPY FORMAT TO TEMP VARIABLE
+          ANDI.B  #$20,TEMP_REGISTER_FORMAT                           * MASKS 0010 0000                                                     *change <SRC>*
+          CMPI.B  #$20,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 0010 0000) THAN INVALID ADDRESSMODE       *change <SRC>*
+          BEQ     GET_SRC_FAILED                                      * THE REGISTER FORMAT DOES NOT ALLOW "(XXX).W" -> SO MOVE ON               *change: checkx++*
           
-          *JUST DISPLAYS ADDRESS MODE 111 FOR TESTING PURPOSE
-          MOVE.L  #'F',D3
-          BSR     PUSH_STACK          
-      
-       *   MOVE.B  DEST_REGISTER_FORMAT, TEMP_REGISTER_FORMAT * COPY FORMAT TO TEMP VARIABLE
-       *   AND.B   #$E0,TEMP_REGISTER_FORMAT                           * MASKS 11100000
-       *   CMP.B   #$10,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT >= 11100000) THAN INVALID ADDRESSMODE 
-       *   BEQ     FAILED                                            * THE REGISTER FORMAT DOES NOT ALLOW "-(An)" -> SO MOVE ON
-          
-       *   MOVE.B  DEST_REGISTER_FORMAT, TEMP_REGISTER_FORMAT * COPY FORMAT TO TEMP VARIABLE
-       *   AND.B   #$E0,TEMP_REGISTER_FORMAT                           * MASKS 11100000
-       *   CMP.B   #$10,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT >= 11100000) THAN INVALID ADDRESSMODE 
-        *  BEQ     FAILED                                            * THE REGISTER FORMAT DOES NOT ALLOW "-(An)" -> SO MOVE ON
-          
-          *MOVE.B  DEST_REGISTER_FORMAT, TEMP_REGISTER_FORMAT * COPY FORMAT TO TEMP VARIABLE
-         * AND.B   #$E0,TEMP_REGISTER_FORMAT                           * MASKS 11100000
-        *  CMP.B   #$10,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT >= 11100000) THAN INVALID ADDRESSMODE 
-         * BEQ     FAILED                                            * THE REGISTER FORMAT DOES NOT ALLOW "-(An)" -> SO MOVE ON
-          
-CHECK_WORD
+          *IT IS A WORD AT THIS POINT*
+          *PUSH "Dn" INTO STACK, BUT FIND MAKE SURE TO FIND "n"
+          MOVE.B    #' ',D3
+          BSR       PUSH_STACK
+          MOVE.B    #'$',D3
+          BSR       PUSH_STACK
+          MOVE.W    (A5)+,D1
+          MOVE.L    #4,D2           *SIZE INITIALIZED FOR CONVERSION
+          BSR       HEX2ASCII2STACK
+          BRA     GET_SRC_SUCCESS
+
 CHECK_LONG
-CHECK_IMMEDIATE
+          LEA     TEMP_REGISTER_FORMAT,A0
+          MOVE.B  SRC_REGISTER_FORMAT, D2                             *COPY FORMAT TO TEMP VARIABLE
+          MOVE.B  D2, (A0)                                            *COPY FORMAT TO TEMP VARIABLE
+          ANDI.B  #$40,TEMP_REGISTER_FORMAT                           * MASKS 0100 0000                                                     *change <SRC>*
+          CMPI.B  #$40,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 0100 0000) THAN INVALID ADDRESSMODE       *change <SRC>*
+          BEQ     GET_SRC_FAILED                                      * THE REGISTER FORMAT DOES NOT ALLOW "(XXX).W" -> SO MOVE ON               *change: checkx++*
           
-          *EA_EA_GET_SRC INTO D3
+          *IT IS A WORD AT THIS POINT*
+          *PUSH "Dn" INTO STACK, BUT FIND MAKE SURE TO FIND "n"
+          MOVE.B    #' ',D3
+          BSR       PUSH_STACK
+          MOVE.B    #'$',D3
+          BSR       PUSH_STACK
+          MOVE.W    (A5)+,D1
+          MOVE.L    #4,D2           *SIZE INITIALIZED FOR CONVERSION
+          BSR       HEX2ASCII2STACK
+          BRA     GET_SRC_SUCCESS
+          
+CHECK_IMMEDIATE
+          LEA     TEMP_REGISTER_FORMAT,A0
+          MOVE.B  SRC_REGISTER_FORMAT, D2                             *COPY FORMAT TO TEMP VARIABLE
+          MOVE.B  D2, (A0)                                            *COPY FORMAT TO TEMP VARIABLE
+          ANDI.B  #$80,TEMP_REGISTER_FORMAT                           * MASKS 0100 0000                                                     *change <SRC>*
+          CMPI.B  #$80,TEMP_REGISTER_FORMAT                           * IF(TEMP_REGISTER_FORMAT == 0100 0000) THAN INVALID ADDRESSMODE       *change <SRC>*
+          BEQ     GET_SRC_FAILED                                      * THE REGISTER FORMAT DOES NOT ALLOW "(XXX).W" -> SO MOVE ON               *change: checkx++*
+          
+          *IT IS A WORD AT THIS POINT*
+          *PUSH "Dn" INTO STACK, BUT FIND MAKE SURE TO FIND "n"
+          MOVE.B    #' ',D3
+          BSR       PUSH_STACK
+          MOVE.B    #'#',D3
+          BSR       PUSH_STACK
+          MOVE.W    (A5)+,D1
+          MOVE.L    #4,D2           *SIZE INITIALIZED FOR CONVERSION
+          BSR       HEX2ASCII2STACK
           BRA     GET_SRC_SUCCESS
           
 GET_SRC_FAILED    *SEND ERROR FLAG THAN CLEAN ALL REGISTERS/VARIABLES THAN PRINT OP_DATA
@@ -2739,6 +2811,9 @@ VAR_LONG_ADDRESS_MODE_CHECK        DS.L    1       *holds the bits 0-2 in long f
 *MORE FOR STACK USAGE*
 DISP_COMMA  DC.B    ',',0
 DISP_INDENT  DC.B    '   ',0
+
+*NEXT WORD POINTER: FOR IDENTIFING (xxx).W or (xxx).L*
+POINTER_WORD    DS.W       1
 
 
 
