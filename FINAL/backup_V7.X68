@@ -49,22 +49,24 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             MOVE.B  #14,D0                  * Display A1
             TRAP    #15
             RTS
-TESTING
-            *ADD.B  D1,A1           *DOESN'T WORK WITH ADD.B, BUT WITH ADD.W/ADD.L IT DOES
-            *ADD.B  A2,D2           *DOESN'T WORK WITH ADD.B
-            ADD.B  (A3),D3
-            ADD.B  (A4)+,D4
-            ADD.B  -(A5),D5
-            ADD.B  $3331,D6
-            ADD.B  $44444441,D7
+TESTING     
+            ADDA.L   D2,A2
+            ADDA.L   A1,A2   
+            ADDA.L  (A3),A3
+            ADDA.L  (A4)+,A4
+            ADDA.L  -(A5),A5
+            ADDA.L  $3331,A6
+            ADDA.L  $44444441,A7
+            
+            ADDA.W   D2,A2
+            ADDA.W   A1,A2   
+            ADDA.W  (A3),A3
+            ADDA.W  (A4)+,A4
+            ADDA.W  -(A5),A5
+            ADDA.W  $3331,A6
+            ADDA.W  $44444441,A7
+            
 
-            *ADD.B  A1,D1
-            *ADD.B  D2,A2   
-            ADD.B  D3,(A3)
-            ADD.B  D4,(A4)+
-            ADD.B  D5,-(A5)
-            ADD.B  D6,$3331
-            ADD.B  D7,$44444441
             
             RTS
 *---------------------------------------------------------------------------*
@@ -410,11 +412,11 @@ NEXTLINES   CLR.B   D6
 * JMPTABLE: OP code jump/branch table used to decode and display opcodes
 *---------------------------------------------------------------------------*  
 JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI/BTST
-            JMP     OP0001  * MOVE.B                                        *WORKING ON - JOSEPH
-            JMP     OP0010  * MOVE.L/MOVEA.L
+            JMP     OP0001  * MOVE.B                                        *FINISHED - JOSEPH
+            JMP     OP0010  * MOVE.L/MOVEA.L                                *FINISHED - JOSEPH
             JMP     OP0011  * MOVE.W/MOVEA.W
             JMP     OP0100  * MOVEM/LEA/NEG/NOT/JSR/RTS
-            JMP     OP0101  * ADDQ
+            JMP     OP0101  * ADDQ  
             JMP     OP0110  * BRA/Bcc (BEQ/BNE/BLT/BHI)
             JMP     OP0111  * MOVEQ (unassigned)
             JMP     OP1000  * DIVS
@@ -422,7 +424,7 @@ JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI/BTST
             JMP     OP1010  * Unassigned 
             JMP     OP1011  * CMP/EOR/CMPA
             JMP     OP1100  * MULS/AND
-            JMP     OP1101  * ADD/ADDA
+            JMP     OP1101  * ADD/ADDA                                      *FINISHED - JOSEPH
             JMP     OP1110  * LSR/LSL/ASR/ASL/ROL/ROR
             JMP     OP1111  * Special/Reserved
             
@@ -1452,6 +1454,96 @@ OP1101      CLR.L   D0
             
             *CLEAR D3
             CLR.L   D3
+            
+            
+            
+            **INTEGRATING ADDA.W/.L INTO THIS CODE**
+            MOVE.L  D5,D1       *GET CLEAN COPY OF DATA INTO [D1]      
+            *BITS (INDEX 8) 
+            *0 = ADD.B/W/L <EA>,Dn
+            *1 = ADD.B/W/L Dn,<EA> 
+            ROR.L   #6,D1
+            ANDI.L  #$07,D1                 *MASKS WITH 00000111
+            CMPI.L  #$07,D1                 *IF EQUALS <ea>,Dn
+            BEQ     OP1101_ADDA_L            *BRANCHES TO ADDA.L
+            CMPI.L  #$03,D1                 *IF EQUALS <ea>,Dn
+            BEQ     OP1101_ADDA_W           *BRANCHES TO ADDA.W
+            BRA     OP1101_DETERMINE_DN_EA_OR_EA_DN         *ELSE CHECK ADD.B/.W/.L
+            
+OP1101_ADDA_L
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'A',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'D',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'D',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'A',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            
+           *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$00,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
+           MOVE.B   #$00,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
+           MOVE.B   #$20,GET_SRC_START_END
+
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$FE3F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #%0000000001000000,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (001) 
+     
+            *PRINT <EA>,AN
+            BSR     GET_EA_EA_SRC       *GETS <ea>
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK                     
+            BSR     GET_EA_EA_DEST      *GETS Dn
+
+            
+            
+            RTS
+OP1101_ADDA_W
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'A',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'D',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'D',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'A',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+            
+           *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$00,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
+           MOVE.B   #$00,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
+           MOVE.B   #$20,GET_SRC_START_END
+
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$FE3F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #%0000000001000000,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (001) 
+     
+            *PRINT <EA>,AN
+            BSR     GET_EA_EA_SRC       *GETS <ea>
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK                     
+            BSR     GET_EA_EA_DEST      *GETS Dn
+
+            RTS
+
+OP1101_DETERMINE_DN_EA_OR_EA_DN 
             *LOAD STACK WITH THIS OPMODE
             BSR     PUSH_STACK
             MOVE.B  #'A',D3
@@ -1462,9 +1554,7 @@ OP1101      CLR.L   D0
             BSR     PUSH_STACK
             MOVE.B  #'.',D3
             BSR     PUSH_STACK
-
-          
-OP1101_DETERMINE_DN_EA_OR_EA_DN 
+            
             MOVE.L  D5,D1       *GET CLEAN COPY OF DATA INTO [D1]      
             
             *BITS (INDEX 8) 
@@ -1497,14 +1587,14 @@ OP1101_PRINT_B2
            
             *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
            MOVE.B   #$02,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
-           MOVE.B   #$02,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+           MOVE.B   #$83,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
            
            *INITIALIZE WHERE TO FIND REGISTER NUMBERS
            MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
            MOVE.B   #$20,GET_SRC_START_END
 
             *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$FF1F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1111(F[15]) 0001(1) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ANDI.L  #$FE3F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
             ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
      
             BSR     GET_EA_EA_DEST      *GETS Dn
@@ -1519,15 +1609,15 @@ OP1101_PRINT_W2
             BSR     PUSH_STACK
 
             *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
-            MOVE.B   #$02,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
-            MOVE.B   #$02,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+            MOVE.B   #$00,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
+            MOVE.B   #$83,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
            
             *INITIALIZE WHERE TO FIND REGISTER NUMBERS
             MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
             MOVE.B   #$20,GET_SRC_START_END
 
             *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$FF1F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1111(F[15]) 0001(1) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ANDI.L  #$FE3F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
             ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
 
       
@@ -1544,15 +1634,15 @@ OP1101_PRINT_L2
             BSR     PUSH_STACK
             
             *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
-            MOVE.B   #$02,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
-            MOVE.B   #$02,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+            MOVE.B   #$00,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
+            MOVE.B   #$83,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
            
             *INITIALIZE WHERE TO FIND REGISTER NUMBERS
             MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
             MOVE.B   #$20,GET_SRC_START_END
 
            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$FF1F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1111(F[15]) 0001(1) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ANDI.L  #$FE3F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
             ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
 
              
@@ -1590,7 +1680,7 @@ OP1101_PRINT_B
             MOVE.B   #$20,GET_SRC_START_END
 
            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$FF1F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1111(F[15]) 0001(1) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ANDI.L  #$FE3F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
             ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
 
             
@@ -1605,15 +1695,15 @@ OP1101_PRINT_W
             BSR     PUSH_STACK
 
             *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
-            MOVE.B   #$02,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
-            MOVE.B   #$02,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+            MOVE.B   #$00,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
+            MOVE.B   #$00,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
            
             *INITIALIZE WHERE TO FIND REGISTER NUMBERS
             MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
             MOVE.B   #$20,GET_SRC_START_END
 
            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$FF1F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1111(F[15]) 0001(1) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ANDI.L  #$FE3F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
             ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
 
             
@@ -1628,15 +1718,15 @@ OP1101_PRINT_L
             BSR     PUSH_STACK
             
             *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
-            MOVE.B   #$02,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
-            MOVE.B   #$02,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+            MOVE.B   #$00,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
+            MOVE.B   #$00,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
            
             *INITIALIZE WHERE TO FIND REGISTER NUMBERS
             MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
             MOVE.B   #$20,GET_SRC_START_END
 
             *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$FF1F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1111(F[15]) 0001(1) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ANDI.L  #$FE3F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
             ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
 
                    
@@ -3500,6 +3590,7 @@ POINTER_WORD    DS.W       1
 * Ends program
 *---------------------------------------------------------------------------*
             END    START                    * last line of source
+
 
 
 
