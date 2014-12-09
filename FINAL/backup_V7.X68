@@ -50,17 +50,21 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             TRAP    #15
             RTS
 TESTING     
-
-            CMPI.W  #$1111,(A3)
-            CMPI.W  #$111,(A4)+
-            CMPI.W  #$11,-(A5)
-            CMPI.W  #$1,$3331
-            CMPI.W  #$1,$44444441
-            CMPI.B  #$1,(A3)
-            CMPI.B  #$1,(A4)+
-            CMPI.B  #$1,-(A5)
-            CMPI.B  #$11,$3331
-            CMPI.B  #$1,$44444441
+            ORI.L  #$11111111,(A3)
+            ORI.L  #$111,(A4)+
+            ORI.L  #$11,-(A5)
+            ORI.L  #$1,$3331
+            ORI.L  #$1,$44444441
+            ORI.W  #$1111,(A3)
+            ORI.W  #$111,(A4)+
+            ORI.W  #$11,-(A5)
+            ORI.W  #$1,$3331
+            ORI.W  #$1,$44444441
+            ORI.B  #$1,(A3)
+            ORI.B  #$1,(A4)+
+            ORI.B  #$1,-(A5)
+            ORI.B  #$11,$3331
+            ORI.B  #$1,$44444441
 
 
 
@@ -407,7 +411,7 @@ NEXTLINES   CLR.B   D6
 *---------------------------------------------------------------------------*
 * JMPTABLE: OP code jump/branch table used to decode and display opcodes
 *---------------------------------------------------------------------------*  
-JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI/BTST
+JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI/BTST                  *CMPI/ORI/ -
             JMP     OP0001  * MOVE.B                                        *FINISHED - JOSEPH
             JMP     OP0010  * MOVE.L/MOVEA.L                                *FINISHED - JOSEPH
             JMP     OP0011  * MOVE.W/MOVEA.W                                *FINISHED - JOSEPH
@@ -681,37 +685,90 @@ OP0000_RETURN_CMPI
 * OP_ORI : decode ORI and its size
 *---------------------------------------------------------------------------* 
 OP_ORI      
-            CLR.L   D1
-            CLR.L   D4
+         
+ *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$00,DEST_REGISTER_FORMAT
+           MOVE.B   #$82,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END
+           MOVE.B   #$20,GET_SRC_START_END
+           
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'O',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'R',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'I',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            
+            *FIGURE OUT SIZE*
+            *00 = BYTE
+            *01 = WORD
+            *10 = LONG
+            * BITS 7&6
+            
+            *COMPARE TO SEE IF IT IS BYTE/WORD/LONG SIZE
             MOVE.L  D5,D1
-            ROR.L   #6,D1       * shift bit 7,6 to bit 1,0
-            CMPI.B  #0,D1
-            BEQ     OP_ORI_B    * size is byte
-            CMPI.B  #1,D1
-            BEQ     OP_ORI_W    * size is word
-            CMPI.B  #2,D1
-            BEQ     OP_ORI_L    * size is long
+            ROR.L   #6,D1
+            ANDI.L  #$03,D1
+            CMPI.B  #%00,D1
+            BEQ     OP0000_ORI_B
+            CMPI.B  #%01,D1
+            BEQ     OP0000_ORI_W
+            ANDI.L  #$03,D1
+            CMPI.B  #%10,D1
+            BEQ     OP0000_ORI_L
 
-OP_ORI_B    * size is byte    
-            MOVE.B  #0,D4
-            LEA     DISP_ORI_B,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
+OP0000_ORI_B
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+*GET DATA FROM ADDQ AND PRINT #0-8
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$01C0,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
+            BSR     GET_EA_EA_DEST
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
+            BRA     OP0000_RETURN_ORI
+
+OP0000_ORI_W
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+*GET DATA FROM ADDQ AND PRINT #0-8
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$01C0,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
+            BSR     GET_EA_EA_DEST
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
+            BRA     OP0000_RETURN_ORI
+
+OP0000_ORI_L
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            *GET DATA FROM ADDQ AND PRINT #0-8
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$03C0,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
+            BSR     GET_EA_EA_DEST
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
             
-OP_ORI_W    * size is word
-            MOVE.B  #1,D4
-            LEA     DISP_ORI_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
+OP0000_RETURN_ORI
+
+
             
-OP_ORI_L    * size is long
-            MOVE.B  #2,D4
-            LEA     DISP_ORI_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
             RTS
+
         
 *---------------------------------------------------------------------------*
 * OP0001: MOVE.B
