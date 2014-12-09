@@ -51,13 +51,11 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             RTS
 TESTING     
             
-         NOT.L   D1
-            NOT.L   (A2)
-            NOT.L   (A3)+
-            NOT.L   -(A4)
-            NOT.L   $1234
-            NOT.L   $56768987
-            
+            EOR.L  D3,(A3)
+            EOR.L  D4,(A4)+
+            EOR.L  D5,-(A5)
+            EOR.L  D6,$3331
+            EOR.L  D7,$44444441
 
 
 
@@ -408,9 +406,9 @@ JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI/BTST
             JMP     OP0001  * MOVE.B                                        *FINISHED - JOSEPH
             JMP     OP0010  * MOVE.L/MOVEA.L                                *FINISHED - JOSEPH
             JMP     OP0011  * MOVE.W/MOVEA.W                                *FINISHED - JOSEPH
-            JMP     OP0100  * MOVEM/LEA/NEG/NOT/JSR/RTS                     *NOT FINISHED - LEA,JSR,RTS,NEG - JOSEPH
+            JMP     OP0100  * MOVEM/LEA/NEG/NOT/JSR/RTS                     *FINISHED - JOSEPH
             JMP     OP0101  * ADDQ                                          *FINISHED - JOSEPH
-            JMP     OP0110  * BRA/Bcc (BEQ/BNE/BLT/BHI)                     *FINISHED - LYN
+            JMP     OP0110  * BRA/Bcc (BEQ/BNE/BLT/BHI)                     *NOT FINISHED - LYN
             JMP     OP0111  * MOVEQ (unassigned)                            *FINISHED - NEVER ASSIGNED
             JMP     OP1000  * DIVS                                          *FINISHED - JOSEPH
             JMP     OP1001  * SUB/SUBA                                      *FINISHED - JOSEPH
@@ -1843,23 +1841,107 @@ OP1011      CLR.L   D0
             ROR.L   #5,D1
             ANDI.L  #$E,D1
             CMPI.B  #$0,D1
-            BEQ     OP_CMP_B
+            BEQ     OP1011_CMP
             CMPI.B  #$2,D1
-            BEQ     OP_CMP_W
+            BEQ     OP1011_CMP
             CMPI.B  #$4,D1
-            BEQ     OP_CMP_L
+            BEQ     OP1011_CMP
             CMPI.B  #$8,D1
-            BEQ     OP_EOR_B
+            BEQ     OP1011_EOR
             CMPI.B  #$A,D1
-            BEQ     OP_EOR_W
+            BEQ     OP1011_EOR
             CMPI.B  #$C,D1
-            BEQ     OP_EOR_L  
+            BEQ     OP1011_EOR  
             CMPI.B  #$6,D1
-            BEQ     OP_CMPA_W
+            BEQ     OP1011_CMPA
             CMPI.B  #$E,D1
-            BEQ     OP_CMPA_L 
+            BEQ     OP1011_CMPA 
 
             JMP     OP_DATA          
+
+
+
+
+OP1011_CMP
+            RTS
+
+OP1011_CMPA
+            RTS
+OP1011_EOR
+
+ *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$82,DEST_REGISTER_FORMAT
+           MOVE.B   #$80,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END
+           MOVE.B   #$20,GET_SRC_START_END
+           
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'E',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'O',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'R',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            
+            *FIGURE OUT SIZE*
+            *00 = BYTE
+            *01 = WORD
+            *10 = LONG
+            * BITS 7&6
+            
+            *COMPARE TO SEE IF IT IS BYTE/WORD/LONG SIZE
+            MOVE.L  D5,D1
+            ROR.L   #6,D1
+            ANDI.L  #$03,D1
+            CMPI.B  #%00,D1
+            BEQ     OP1011_EOR_B
+            ANDI.L  #$03,D1
+            CMPI.B  #%01,D1
+            BEQ     OP1011_EOR_W
+            ANDI.L  #$03,D1
+            CMPI.B  #%10,D1
+            BEQ     OP1011_EOR_L
+          
+OP1011_EOR_B
+            
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+            BRA     OP1011_RETURN
+OP1011_EOR_W
+            
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+            BRA     OP1011_RETURN
+OP1011_EOR_L
+            
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+OP1011_RETURN            
+
+            
+*GET DATA FROM ADDQ AND PRINT #0-8
+     
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$FE3F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
+
+            BSR     GET_EA_EA_DEST
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
+            
+            RTS
+            
+            
+            
+            
 
 *---------------------------------------------------------------------------*
 * OP_CMPA: display CMPA 
