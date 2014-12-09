@@ -51,17 +51,16 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             RTS
 TESTING     
             
-            ADDQ.L  #1,D1
-            ADDQ.L  #2,(A2)
-            ADDQ.L  #3,(A3)+
-            ADDQ.L  #4,-(A4)
+         NOT.L   D1
+            NOT.L   (A2)
+            NOT.L   (A3)+
+            NOT.L   -(A4)
+            NOT.L   $1234
+            NOT.L   $56768987
             
-            ADDQ.L  #5 ,D1
-            ADDQ.L  #6 ,(A2)
-            ADDQ.L  #7 ,(A3)+
-            ADDQ.L  #8 ,-(A4)
 
-            
+
+
             RTS
 *---------------------------------------------------------------------------*
 * START_ADDR: Compute the starting address
@@ -408,14 +407,14 @@ NEXTLINES   CLR.B   D6
 JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI/BTST
             JMP     OP0001  * MOVE.B                                        *FINISHED - JOSEPH
             JMP     OP0010  * MOVE.L/MOVEA.L                                *FINISHED - JOSEPH
-            JMP     OP0011  * MOVE.W/MOVEA.W
-            JMP     OP0100  * MOVEM/LEA/NEG/NOT/JSR/RTS                     *FINISHED - JOSEPH
-            JMP     OP0101  * ADDQ                                          *WORKING ON - JOSEPH
-            JMP     OP0110  * BRA/Bcc (BEQ/BNE/BLT/BHI)
-            JMP     OP0111  * MOVEQ (unassigned)
+            JMP     OP0011  * MOVE.W/MOVEA.W                                *FINISHED - JOSEPH
+            JMP     OP0100  * MOVEM/LEA/NEG/NOT/JSR/RTS                     *NOT FINISHED - LEA,JSR,RTS,NEG - JOSEPH
+            JMP     OP0101  * ADDQ                                          *FINISHED - JOSEPH
+            JMP     OP0110  * BRA/Bcc (BEQ/BNE/BLT/BHI)                     *FINISHED - LYN
+            JMP     OP0111  * MOVEQ (unassigned)                            *FINISHED - NEVER ASSIGNED
             JMP     OP1000  * DIVS                                          *FINISHED - JOSEPH
             JMP     OP1001  * SUB/SUBA                                      *FINISHED - JOSEPH
-            JMP     OP1010  * Unassigned 
+            JMP     OP1010  * Unassigned                                    *FINISHED - NEVER ASSIGNED
             JMP     OP1011  * CMP/EOR/CMPA
             JMP     OP1100  * MULS/AND                                      *FINISHED - JOSEPH
             JMP     OP1101  * ADD/ADDA                                      *FINISHED - JOSEPH
@@ -1020,7 +1019,24 @@ OP_NEG      * 0100 0100 xx (size) xxx (ea mode) xxx (ea reg)
             CLR.L   D1
             CLR.L   D4
             MOVE.L  D5,D1
+            
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'N',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'E',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'G',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            
+            
             ROR.L   #6,D1       * shift bit 7,6 to bit 1,0
+            ANDI.L  #$07,D1
+            
             CMPI.B  #0,D1
             BEQ     OP_NEG_B    * size is byte
             CMPI.B  #1,D1
@@ -1028,29 +1044,34 @@ OP_NEG      * 0100 0100 xx (size) xxx (ea mode) xxx (ea reg)
             CMPI.B  #2,D1
             BEQ     OP_NEG_L    * size is long
                        
+
 OP_NEG_B    * size is byte   
-            MOVE.B  #0,D4 
-            LEA     DISP_NEG_B,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            
-            JSR     EA_NOSRC
-            RTS
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+            BRA     OP_NEG_PRINT_EA
+
             
 OP_NEG_W    * size is word
-            MOVE.B  #1,D4
-            LEA     DISP_NEG_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            JSR     EA_NOSRC
-            RTS
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+            BRA     OP_NEG_PRINT_EA
+
             
 OP_NEG_L    * size is long
-            MOVE.B  #2,D4
-            LEA     DISP_NEG_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            JSR     EA_NOSRC
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            BRA     OP_NEG_PRINT_EA
+
+
+OP_NEG_PRINT_EA
+ *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$82,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$20,GET_SRC_START_END
+                       
+
+            BSR     GET_EA_EA_SRC
             
             RTS
 
@@ -1061,7 +1082,24 @@ OP_NOT
             CLR.L   D1
             CLR.L   D4
             MOVE.L  D5,D1
+            
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'N',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'O',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'T',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            
+            
             ROR.L   #6,D1       * shift bit 7,6 to bit 1,0
+            ANDI.L  #$07,D1
+            
             CMPI.B  #0,D1
             BEQ     OP_NOT_B    * size is byte
             CMPI.B  #1,D1
@@ -1069,26 +1107,35 @@ OP_NOT
             CMPI.B  #2,D1
             BEQ     OP_NOT_L    * size is long
                        
+
 OP_NOT_B    * size is byte   
-            MOVE.B  #0,D4 
-            LEA     DISP_NOT_B,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+            BRA     OP_NOT_PRINT_EA
+
             
 OP_NOT_W    * size is word
-            MOVE.B  #1,D4
-            LEA     DISP_NOT_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+            BRA     OP_NOT_PRINT_EA
+
             
 OP_NOT_L    * size is long
-            MOVE.B  #2,D4
-            LEA     DISP_NOT_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            BRA     OP_NOT_PRINT_EA
+
+
+OP_NOT_PRINT_EA
+ *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$82,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$20,GET_SRC_START_END
+            BSR     GET_EA_EA_SRC
+            
             RTS
+
 
 *---------------------------------------------------------------------------*
 * OP_JSR: display JSR     
@@ -1103,9 +1150,13 @@ OP_JSR      LEA     DISP_JSR,A1
 *---------------------------------------------------------------------------*
 * OP_RTS: display RTS     
 *---------------------------------------------------------------------------* 
-OP_RTS      LEA     DISP_RTS,A1
-            MOVE.B  #14,D0
-            TRAP    #15
+OP_RTS      
+            MOVE.B #'R',D3
+            BSR     PUSH_STACK
+            MOVE.B #'T',D3
+            BSR     PUSH_STACK
+            MOVE.B #'S',D3
+            BSR     PUSH_STACK
             RTS
 
 *---------------------------------------------------------------------------*
