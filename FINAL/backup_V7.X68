@@ -50,12 +50,9 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             TRAP    #15
             RTS
 TESTING     
-            DIVS.W  D3,D3
-            DIVS.W  (A3),D3
-            DIVS.W  (A4)+,D4
-            DIVS.W  -(A5),D5
-            DIVS.W  $3331,D6
-            DIVS.W  $44444441,D7
+            LEA  (A4),A4
+            LEA  $3331,A6
+            LEA  $44444441,A7
             
 
             
@@ -406,11 +403,11 @@ JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI/BTST
             JMP     OP0001  * MOVE.B                                        *FINISHED - JOSEPH
             JMP     OP0010  * MOVE.L/MOVEA.L                                *FINISHED - JOSEPH
             JMP     OP0011  * MOVE.W/MOVEA.W
-            JMP     OP0100  * MOVEM/LEA/NEG/NOT/JSR/RTS
+            JMP     OP0100  * MOVEM/LEA/NEG/NOT/JSR/RTS                     *WORKING ON LEA - JOSEPH
             JMP     OP0101  * ADDQ  
             JMP     OP0110  * BRA/Bcc (BEQ/BNE/BLT/BHI)
             JMP     OP0111  * MOVEQ (unassigned)
-            JMP     OP1000  * DIVS
+            JMP     OP1000  * DIVS                                          *FINISHED - JOSEPH
             JMP     OP1001  * SUB/SUBA                                      *FINISHED - JOSEPH
             JMP     OP1010  * Unassigned 
             JMP     OP1011  * CMP/EOR/CMPA
@@ -919,8 +916,9 @@ OP0100
             * check for LEA     * 0100 xxx (reg) 111 xxx (ea mode) xxx (ea reg)
             CLR.L   D1 
             MOVE.L  D5,D1  
-            ROR.L   #8,D1
-            CMPI.B  #1,D1
+            ROR.L   #6,D1
+            ANDI.L  #7,D1
+            CMPI.L  #7,D1
             BEQ     OP_LEA
             
             * check for MOVEM   * 0100 1 x 001 x (size) xxx (ea mode) xxx (ea reg)
@@ -963,12 +961,51 @@ OP_MOVEM_L
 * OP_LEA: decode and display LEA
 *---------------------------------------------------------------------------*
 OP_LEA      
-            LEA     DISP_LEA,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            JMP     EA_MOVEA
+             CLR.L   D1       
+            CLR.L   D4                   
+            MOVEA.L #0, A1              
+            MOVE.L  D5,D1       *DATA TO BE PROCESS IN [D1], TRY TO GET OPMODE AND DETERMINE .B/.W/.L
+            *CLEAR D3
+            CLR.L   D3
 
+OP_LEA_DN_EA_OR_EA_DN 
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'E',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'A',D3
+            BSR     PUSH_STACK
+            MOVE.L  D5,D1       *GET CLEAN COPY OF DATA INTO [D1]      
+        
+
+OP_PRINT_L_LEA
+                        
+            *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+            MOVE.B   #$00,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
+            MOVE.B   #$9B,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
+           
+            *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+            MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
+            MOVE.B   #$20,GET_SRC_START_END
+
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$FE3F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #%0000000001000000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
+
+            BSR     GET_EA_EA_SRC      *GETS <ea>
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK           
+            BSR     GET_EA_EA_DEST       *GETS Dn    
+
+            
+            BRA     OP_LEA_RETURN
+            
+OP_LEA_RETURN
             RTS
+            
+
 
 *---------------------------------------------------------------------------*
 * OP_NEG: decode and display NEG 
