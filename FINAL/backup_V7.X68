@@ -50,14 +50,17 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             TRAP    #15
             RTS
 TESTING     
-             CMPA.L  D3,A3
-            CMPA.L  (A3),A3
-            CMPA.L  (A4)+,A4
-            CMPA.L  -(A5),A5
-            CMPA.L  $3331,A6
-            CMPA.L  $44444441,A7 
 
-
+            CMPI.W  #$1111,(A3)
+            CMPI.W  #$111,(A4)+
+            CMPI.W  #$11,-(A5)
+            CMPI.W  #$1,$3331
+            CMPI.W  #$1,$44444441
+            CMPI.B  #$1,(A3)
+            CMPI.B  #$1,(A4)+
+            CMPI.B  #$1,-(A5)
+            CMPI.B  #$11,$3331
+            CMPI.B  #$1,$44444441
 
 
 
@@ -442,7 +445,7 @@ OP0000
             MOVE.L  D5,D1
             ANDI.L  #$0F00,D1
             CMPI.L  #$0C00,D1
-            BEQ     OP_CMPI
+            BEQ     OP0000_CMPI
             
             * check for SUBI
             CLR.L   D1
@@ -586,37 +589,92 @@ EA_DATA     LEA     TMPOUTPUT,A1    * load the temporarily stored output address
 *---------------------------------------------------------------------------*
 * OP_CMPI : decode CMPI and its size
 *---------------------------------------------------------------------------*          
-OP_CMPI
-            CLR.L   D1
-            CLR.L   D4
-            MOVE.L  D5,D1
-            ROR.L   #6,D1       * shift bit 7,6 to bit 1,0
-            CMPI.B  #0,D1
-            BEQ     OP_CMPI_B    * size is byte
-            CMPI.B  #1,D1
-            BEQ     OP_CMPI_W    * size is word
-            CMPI.B  #2,D1
-            BEQ     OP_CMPI_L    * size is long
+OP0000_CMPI
 
-OP_CMPI_B    * size is byte    
-            MOVE.B  #0,D4
-            LEA     DISP_CMPI_B,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
             
-OP_CMPI_W    * size is word
-            MOVE.B  #1,D4
-            LEA     DISP_CMPI_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
+ *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$00,DEST_REGISTER_FORMAT
+           MOVE.B   #$82,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END
+           MOVE.B   #$20,GET_SRC_START_END
+           
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'C',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'M',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'P',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'I',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
             
-OP_CMPI_L    * size is long
-            MOVE.B  #2,D4
-            LEA     DISP_CMPI_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
+            *FIGURE OUT SIZE*
+            *00 = BYTE
+            *01 = WORD
+            *10 = LONG
+            * BITS 7&6
+            
+            *COMPARE TO SEE IF IT IS BYTE/WORD/LONG SIZE
+            MOVE.L  D5,D1
+            ROR.L   #6,D1
+            ANDI.L  #$03,D1
+            CMPI.B  #%00,D1
+            BEQ     OP0000_CMPI_B
+            CMPI.B  #%01,D1
+            BEQ     OP0000_CMPI_W
+            ANDI.L  #$03,D1
+            CMPI.B  #%10,D1
+            BEQ     OP0000_CMPI_L
+
+OP0000_CMPI_B
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+*GET DATA FROM ADDQ AND PRINT #0-8
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$01C0,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
+            BSR     GET_EA_EA_DEST
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
+            BRA     OP0000_RETURN_CMPI
+
+OP0000_CMPI_W
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+*GET DATA FROM ADDQ AND PRINT #0-8
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$01C0,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
+            BSR     GET_EA_EA_DEST
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
+            BRA     OP0000_RETURN_CMPI
+
+OP0000_CMPI_L
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            *GET DATA FROM ADDQ AND PRINT #0-8
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$03C0,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
+            BSR     GET_EA_EA_DEST
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
+            
+OP0000_RETURN_CMPI
+
+
+            
             RTS
  
 *---------------------------------------------------------------------------*
