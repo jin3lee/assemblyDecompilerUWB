@@ -50,10 +50,16 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             TRAP    #15
             RTS
 TESTING     
-            LEA  (A4),A4
-            LEA  $3331,A6
-            LEA  $44444441,A7
             
+            ADDQ.L  #1,D1
+            ADDQ.L  #2,(A2)
+            ADDQ.L  #3,(A3)+
+            ADDQ.L  #4,-(A4)
+            
+            ADDQ.L  #5 ,D1
+            ADDQ.L  #6 ,(A2)
+            ADDQ.L  #7 ,(A3)+
+            ADDQ.L  #8 ,-(A4)
 
             
             RTS
@@ -403,8 +409,8 @@ JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI/BTST
             JMP     OP0001  * MOVE.B                                        *FINISHED - JOSEPH
             JMP     OP0010  * MOVE.L/MOVEA.L                                *FINISHED - JOSEPH
             JMP     OP0011  * MOVE.W/MOVEA.W
-            JMP     OP0100  * MOVEM/LEA/NEG/NOT/JSR/RTS                     *WORKING ON LEA - JOSEPH
-            JMP     OP0101  * ADDQ  
+            JMP     OP0100  * MOVEM/LEA/NEG/NOT/JSR/RTS                     *FINISHED - JOSEPH
+            JMP     OP0101  * ADDQ                                          *WORKING ON - JOSEPH
             JMP     OP0110  * BRA/Bcc (BEQ/BNE/BLT/BHI)
             JMP     OP0111  * MOVEQ (unassigned)
             JMP     OP1000  * DIVS                                          *FINISHED - JOSEPH
@@ -1105,29 +1111,141 @@ OP_RTS      LEA     DISP_RTS,A1
 *---------------------------------------------------------------------------*
 * OP0101: decode ADDQ
 *---------------------------------------------------------------------------* 
-OP0101      CLR.L   D0               * clear registers for temp storage       
-            CLR.L   D1
-            CLR.L   D4                  
-            MOVEA.L #0, A1  
+OP0101      
+           *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$82,DEST_REGISTER_FORMAT
+           MOVE.B   #$80,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END
+           MOVE.B   #$20,GET_SRC_START_END
+           
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'A',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'D',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'D',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'Q',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
             
-            MOVE.L  D5,D1           * copy the processing data 
-            LSR.L   #8,D1           * shift to right by 8 bits to check the value of bit 8
-            ANDI.B  #$1,D1          * mask all bits except the last 2 bits
-            CMPI.B  #0,D1           * if the value is 0, it's ADDQ
-            BEQ     OP_ADDQ
+            *FIGURE OUT SIZE*
+            *00 = BYTE
+            *01 = WORD
+            *10 = LONG
+            * BITS 7&6
             
-            JMP     OP_DATA
-     
-OP_ADDQ     CLR.L   D1
+            *COMPARE TO SEE IF IT IS BYTE/WORD/LONG SIZE
             MOVE.L  D5,D1
-            ROR.L   #6,D1       * shift bit 7,6 to bit 1,0
-            ANDI.L  #$3,D1
-            CMPI.B  #0,D1
-            BEQ     OP_ADDQ_B    * size is byte
-            CMPI.W  #1,D1
-            BEQ     OP_ADDQ_W    * size is word
-            CMPI.L  #2,D1
-            BEQ     OP_ADDQ_L    * size is long
+            ROR.L   #6,D1
+            ANDI.L  #$03,D1
+            CMPI.B  #%00,D1
+            BEQ     OP0101_ADDQ_B
+            ANDI.L  #$03,D1
+            CMPI.B  #%01,D1
+            BEQ     OP0101_ADDQ_W
+            ANDI.L  #$03,D1
+            CMPI.B  #%10,D1
+            BEQ     OP0101_ADDQ_L
+          
+OP0101_ADDQ_B
+            
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+            BRA     OP0101_RETURN
+OP0101_ADDQ_W
+            
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+            BRA     OP0101_RETURN
+OP0101_ADDQ_L
+            
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+OP0101_RETURN            
+
+            
+*GET DATA FROM ADDQ AND PRINT #0-8
+            MOVE.B  #' ',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'#',D3
+            BSR     PUSH_STACK 
+
+                     
+            *GET DATA #   
+            MOVE.L  D5,D1
+            ROR.L   #6,D1            
+            ROR.L   #3,D1
+            ANDI.L  #$07,D1
+            
+            CMPI.B  #%000,D1
+            BEQ     OP0101_ADDQ_B_8
+            CMPI.B  #%001,D1
+            BEQ     OP0101_ADDQ_B_1
+            CMPI.B  #%010,D1
+            BEQ     OP0101_ADDQ_B_2
+            CMPI.B  #%011,D1
+            BEQ     OP0101_ADDQ_B_3
+            CMPI.B  #%100,D1
+            BEQ     OP0101_ADDQ_B_4
+            CMPI.B  #%101,D1
+            BEQ     OP0101_ADDQ_B_5
+            CMPI.B  #%110,D1
+            BEQ     OP0101_ADDQ_B_6
+            CMPI.B  #%111,D1
+            BEQ     OP0101_ADDQ_B_7
+            
+OP0101_ADDQ_B_0
+            MOVE.B  #'0',D3
+            BSR     PUSH_STACK
+            BRA     OP0101_RETURN2            
+OP0101_ADDQ_B_1
+            MOVE.B  #'1',D3
+            BSR     PUSH_STACK
+            BRA     OP0101_RETURN2            
+OP0101_ADDQ_B_2
+            MOVE.B  #'2',D3
+            BSR     PUSH_STACK
+            BRA     OP0101_RETURN2            
+OP0101_ADDQ_B_3
+            MOVE.B  #'3',D3
+            BSR     PUSH_STACK
+            BRA     OP0101_RETURN2            
+OP0101_ADDQ_B_4
+            MOVE.B  #'4',D3
+            BSR     PUSH_STACK
+            BRA     OP0101_RETURN2            
+OP0101_ADDQ_B_5
+            MOVE.B  #'5',D3
+            BSR     PUSH_STACK
+            BRA     OP0101_RETURN2
+OP0101_ADDQ_B_6
+            MOVE.B  #'6',D3
+            BSR     PUSH_STACK
+            BRA     OP0101_RETURN2
+OP0101_ADDQ_B_7
+            MOVE.B  #'7',D3
+            BSR     PUSH_STACK
+            BRA     OP0101_RETURN2
+
+OP0101_ADDQ_B_8
+            MOVE.B  #'8',D3
+            BSR     PUSH_STACK
+            
+OP0101_RETURN2            
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
+            
+            RTS
+
+
             
 *---------------------------------------------------------------------------*
 * OP_ADDQ: display ADDQ
