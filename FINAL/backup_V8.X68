@@ -50,24 +50,16 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             TRAP    #15
             RTS
 TESTING     
-            SUBI.B  #255,(A3)
-            SUBI.B  #$25,(A4)+
-            SUBI.B  #%10101010,-(A5)
-            SUBI.B  #128,$3331
-            SUBI.B  #64,$44444441
-             
-            SUBI.W  #255,(A3)
-            SUBI.W  #$25,(A4)+
-            SUBI.W  #%10101010,-(A5)
-            SUBI.W  #128,$3331
-            SUBI.W  #64,$44444441
+            BRA     TESTING
+            BRA     TESTING
+            BRA     TESTING
+            BRA     TESTING
             
-            SUBI.L  #255,(A3)
-            SUBI.L  #$25,(A4)+
-            SUBI.L  #%10101010,-(A5)
-            SUBI.L  #128,$3331
-            SUBI.L  #64,$44444441
-
+            
+            BEQ     TESTING
+            BNE     TESTING
+            BLT     TESTING
+            BHI     TESTING
 
 
             RTS
@@ -234,6 +226,54 @@ ASC_ERR     MOVE.B  #1, D7                  * Set the error flag to 1
 RETURN      RTS     
 
 *---------------------------------------------------------------------------*
+* ASCII2HEX: Convert ASCii to Hexadecimal
+* Reserved registers: A1 = Source, D3 = Destination, D2 = Byte, D7 = Error
+*---------------------------------------------------------------------------*
+ASCII2HEX2STACK
+            CLR.L   D3                      * Clear the destination 
+            CLR.L   D7                      * Set the error flag to 0
+            CLR.L   D2                      * Clear D2 for temp storage
+            
+ASC2HXLP2STACK
+            MOVE.B  (A1)+, D2               * Read a byte to D2
+            CMPI.B  #0, D2                  * Check for NULL (indicates the end of source)
+            BEQ     RETURN2STACK                  * If it's NULL, go to return
+            CMPI.B  #102, D2                * Decimal ASCII value of f is 102
+            BGT     ASC_ERR2STACK                 * ASCII > f (invalid input) 
+            CMPI.B  #97, D2                 * Decimal ASCII value of a is 97
+            BGE     ASC_LOW2STACK                 * ASCII >= a (valid input)
+            CMPI.B  #70, D2                 * Decimal ASCII value of F is 70
+            BGT     ASC_ERR2STACK                 * ASCII > F (invalid input)
+            CMPI.B  #65, D2                 * Decimal ASCII value of A is 65
+            BGE     ASC_UPP2STACK                 * ASCII >= A (valid input)
+            CMPI.B  #57, D2                 * Decimal value of 9 is 57
+            BGT     ASC_ERR2STACK                 * ASCII > 9 (invalid input)
+            CMPI.B  #48, D2                 * Decimal ASCII value of 0 is 48
+            BGE     ASC_NUM2STACK                 * ASCII >= 0 (valid input)
+            BRA     ASC_ERR2STACK                 * Invalid input
+
+ASC_LOW2STACK
+            SUBI    #87, D2                 * Convert the ASCII input to Hex
+            BRA     ASC_SFT2STACK                 * Go to ASC_SFT to shift the bits
+            
+ASC_UPP2STACK
+            SUBI    #55, D2                 * Convert the ASCII input to Hex
+            BRA     ASC_SFT2STACK                 * Go to ASC_SFT to shift the bits
+            
+ASC_NUM2STACK
+            SUBI    #48, D2                 * Convert the ASCII input to Hex
+            BRA     ASC_SFT2STACK                * Go to ASC_SFT to shift the bits
+            
+ASC_SFT2STACK
+            ASL.L   #4, D3                  * Shift the dest to left by 4 bits
+            ADD.B   D2, D3                  * Add the converted input to D1
+            BRA     ASC2HXLP2STACK                * Loop
+
+ASC_ERR2STACK
+            MOVE.B  #1, D7                  * Set the error flag to 1            
+RETURN2STACK
+            RTS  
+*---------------------------------------------------------------------------*
 * HEX2ASCII: Convert Hexadecimal to ASCii 
 * Reserved registers: A1 = Destination, D1 = Source, D2 = Size, D7 = Byte
 *---------------------------------------------------------------------------*
@@ -262,7 +302,7 @@ HEX_CONT    MOVE.B  D3, (A1)+               * Place into A1
             RTS
 *---------------------------------------------------------------------------*
 * HEX2ASCII2STACK: Convert Hexadecimal to ASCii 
-* Reserved registers: A1 = Destination, D1 = Source, D2 = Size, D7 = Byte
+* Reserved registers: A1 = Destination, D1 = Source, D2 = Size, D7 = Byte, PUSHES FROM D3 INTO STACK
 *---------------------------------------------------------------------------*
 HEX2ASCII2STACK
             CMPI.B  #8, D2                  * Check to see if the size is long
@@ -419,7 +459,7 @@ JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI                       *FIN
             JMP     OP0011  * MOVE.W/MOVEA.W                                *FINISHED - JOSEPH
             JMP     OP0100  * MOVEM/LEA/NEG/NOT/JSR/RTS                     *FINISHED - JOSEPH
             JMP     OP0101  * ADDQ                                          *FINISHED - JOSEPH
-            JMP     OP0110  * BRA/Bcc (BEQ/BNE/BLT/BHI)                     *NOT FINISHED - LYN
+            JMP     OP0110  * BRA/Bcc (BEQ/BNE/BLT/BHI)                     *SO FAR COMPLATED (BRA)
             JMP     OP0111  * MOVEQ (unassigned)                            *FINISHED - NEVER ASSIGNED
             JMP     OP1000  * DIVS                                          *FINISHED - JOSEPH
             JMP     OP1001  * SUB/SUBA                                      *FINISHED - JOSEPH
@@ -1703,9 +1743,17 @@ OP_BEQ		LEA     DISP_BEQ,A1
             TRAP    #15
             RTS          
             			
-OP_BRA		LEA     DISP_BRA,A1          	
-            MOVE.B  #14,D0
-            TRAP    #15
+OP_BRA		
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'R',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'A',D3
+            BSR     PUSH_STACK
+            MOVE.B  #$9,D3
+            BSR     PUSH_STACK
+            BSR     GET_DISPLACEMENT_ADDRESS
+            
             RTS
             
 OP_BLT		LEA     DISP_BLT,A1          
@@ -4760,6 +4808,58 @@ CLEAR_STACK
  
 CLEAR_RETURN
             RTS    
+            
+*---------------------------------------------------------------------------*
+* 8/16/32-bit Address getter
+*---------------------------------------------------------------------------*
+*get displacement value from bits 0 to 8
+*if displacement is not $00, than it is 8 otherwise check for word
+*if displacement is not $FF, than it is a long
+*add the displacement to the current address being processed + a word
+*place results into D3, so that it can be pushed to stack
+GET_DISPLACEMENT_ADDRESS
+            MOVE.L  D5,D4                   * COPIES DATA INTO D6
+            ANDI.L  #$00FF,D6               * MASKS DATA
+            CMPI.L  #$00,D4                 * COMPARES DATA IF IT IS WORD
+            BEQ     GET_DISPLACEMENT_WORD
+            CMPI.L  #$FF,D4                 * COMPARES DATA IF IT IS LONG
+            BEQ     GET_DISPLACEMENT_LONG
+            
+            MOVE.L  #$100,D7                 *FILL D7 WITH FF SO THAT IT CAN BE SUBTRACTED BY THE DISPLACEMENT GIVING US THE REAL DISPLACEMENT
+            SUB.B   D4,D7
+            
+            MOVE.L  A5,D4                   * PC+2 ADDRESS INTO D6
+            SUB.B   D7,D4                   * SUBTRACT "DISPLACEMENT + 2 " TO GET THE ORIGINAL ADDRESS BEING BRANCH TO
+            MOVE.L  #4,D2
+            MOVE.L  D4,D1  
+            BSR     HEX2ASCII2STACK
+            RTS
+            
+GET_DISPLACEMENT_WORD
+            MOVE.L  #$FF,D7                 *FILL D7 WITH FF SO THAT IT CAN BE SUBTRACTED BY THE DISPLACEMENT GIVING US THE REAL DISPLACEMENT
+            SUB.B   D4,D7
+            
+            MOVE.L  A5,D4                   * PC+2 ADDRESS INTO D6
+            SUB.B   D7,D4                   * SUBTRACT "DISPLACEMENT + 2 " TO GET THE ORIGINAL ADDRESS BEING BRANCH TO
+            MOVE.L  #4,D2
+            MOVE.L  D4,D3
+            MOVE.L  D4,D1
+            BSR     HEX2ASCII2STACK
+            RTS     
+GET_DISPLACEMENT_LONG   
+            MOVE.L  #$FF,D7                 *FILL D7 WITH FF SO THAT IT CAN BE SUBTRACTED BY THE DISPLACEMENT GIVING US THE REAL DISPLACEMENT
+            SUB.B   D4,D7
+            
+            MOVE.L  A5,D4                   * PC+2 ADDRESS INTO D6
+            SUB.B   D7,D4                   * SUBTRACT "DISPLACEMENT + 2 " TO GET THE ORIGINAL ADDRESS BEING BRANCH TO
+            MOVE.L  #8,D2
+            MOVE.L  D4,D3                   * PREPARE TO PUSH
+            MOVE.L  D4,D1
+            BSR     HEX2ASCII2STACK
+
+            CLR.L   D4
+            RTS
+
 *---------------------------------------------------------------------------*
 * TERMINATE
 *---------------------------------------------------------------------------*
