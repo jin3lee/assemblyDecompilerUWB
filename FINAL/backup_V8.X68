@@ -51,11 +51,17 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             RTS
 TESTING     
             BTST.B  #$11111111,(A3)
-            BTST.B  #$111,(A4)+
-            BTST.B  #$11,-(A5)
-            BTST.B  #$1,$3331
-            BTST.B  #$1,$44444441
-
+            BTST.B  #111,(A4)+
+            BTST.B  #%11,-(A5)
+            BTST.B  #1,$3331
+            
+            BTST.B  D0,(A3)
+            BTST.B  D1,(A4)+
+            BTST.B  D2,-(A5)
+            BTST.B  D3,$3331
+            BTST.B  D4,$44444441
+            
+            
 
 
 
@@ -299,7 +305,7 @@ IS_ODD_ERR  MOVE.B  #1, D7
             RTS
 
 *---------------------------------------------------------------------------**---------------------------------------------------------------------------**---------------------------------------------------------------------------*
-* MAIN                    
+* MAINDEBUG                    
 * A2: STACK POINTER                                                      MAIN                                                                        MAIN
 * A5: Processing address
 *
@@ -402,7 +408,7 @@ NEXTLINES   CLR.B   D6
 *---------------------------------------------------------------------------*
 * JMPTABLE: OP code jump/branch table used to decode and display opcodes
 *---------------------------------------------------------------------------*  
-JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI/BTST                  *CMPI/ORI/ -
+JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI/BTST                  *CMPI/ORI/BTST -
             JMP     OP0001  * MOVE.B                                        *FINISHED - JOSEPH
             JMP     OP0010  * MOVE.L/MOVEA.L                                *FINISHED - JOSEPH
             JMP     OP0011  * MOVE.W/MOVEA.W                                *FINISHED - JOSEPH
@@ -463,6 +469,13 @@ OP0000
             ANDI.L  #$1,D1
             CMPI.B  #$1,D1
             BEQ     OP_BTST
+            CLR.L   D1
+            MOVE.L  D5,D1
+            ROR.L   #6,D1
+            ANDI.L  #$03FF,D1
+            CMPI.L  #%000100000,D1
+            BEQ     OP_BTST
+
 
             * OP0000 series other than ORI/CMPI/BTST/EORI
             JMP     OP_DATA
@@ -470,7 +483,7 @@ OP0000
 *---------------------------------------------------------------------------*
 * OP_BTST: display BTST
 *---------------------------------------------------------------------------* 
-OP_BTST     
+OP_BTST       
             *FIGURE OUT IF it is : Dn,<ea> or #<data>,<ea>
             *bits #8 indicates which
             *0 - #immediate format
@@ -491,6 +504,9 @@ OP_BTST
            MOVE.B   #$B9,GET_DST_START_END
            MOVE.B   #$20,GET_SRC_START_END
            
+           ANDI.L  #$FE3F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+           ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
+            
             *CLEAR D3
             CLR.L   D3
             *LOAD STACK WITH THIS OPMODE
@@ -505,7 +521,7 @@ OP_BTST
             BSR     PUSH_STACK
             MOVE.B  #'.',D3
             BSR     PUSH_STACK
-            MOVE.B  #'L',D3
+            MOVE.B  #'B',D3
             BSR     PUSH_STACK
             
             BSR     GET_EA_EA_DEST
@@ -543,63 +559,32 @@ OP_BTST_IMMEDIATE
             BSR     PUSH_STACK
             MOVE.B  #'B',D3
             BSR     PUSH_STACK
-            
-            *FIGURE OUT SIZE*
-            *00 = BYTE
-            *01 = WORD
-            *10 = LONG
-            * BITS 7&6
-            
-            *COMPARE TO SEE IF IT IS BYTE/WORD/LONG SIZE
-            MOVE.L  D5,D1
-            ROR.L   #6,D1
-            ANDI.L  #$03,D1
-            CMPI.B  #%00,D1
-            BEQ     OP0000_BTST_B
-            CMPI.B  #%01,D1
-            BEQ     OP0000_BTST_W
-            ANDI.L  #$03,D1
-            CMPI.B  #%10,D1
-            BEQ     OP0000_BTST_L
 
 OP0000_BTST_B
-            MOVE.B  #'B',D3
-            BSR     PUSH_STACK
-*GET DATA FROM ADDQ AND PRINT #0-8
-            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
-            ADDI.L  #$01C0,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
-            BSR     GET_EA_EA_DEST
-            MOVE.B  #',',D3
-            BSR     PUSH_STACK
-            BSR     GET_EA_EA_SRC
-            BRA     OP0000_RETURN_BTST
-
-OP0000_BTST_W
-            MOVE.B  #'W',D3
-            BSR     PUSH_STACK
-*GET DATA FROM ADDQ AND PRINT #0-8
-            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
-            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
-            ADDI.L  #$01C0,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
-            BSR     GET_EA_EA_DEST
-            MOVE.B  #',',D3
-            BSR     PUSH_STACK
-            BSR     GET_EA_EA_SRC
-            BRA     OP0000_RETURN_BTST
-
-OP0000_BTST_L
-            MOVE.B  #'L',D3
-            BSR     PUSH_STACK
             *GET DATA FROM ADDQ AND PRINT #0-8
             *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
             ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
-            ADDI.L  #$03C0,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
+            ADDI.L  #$01C0,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
+
+            *GRAB #IMMEDIATE DATA AS WORD SIZE
+           * Reserved registers: A1 = Destination, D1 = Source, D2 = Size, D7 = Byte
+           * MOVE.W    (A5)+,D1
+           * MOVE.B  #' ',D3
+           * BSR     PUSH_STACK
+           * MOVE.B  #'#',D3
+           * BSR     PUSH_STACK
+           * BSR     HEX2ASCII2STACK
+           * BSR     PUSH_STACK
+            
+            MOVE.B  #' ',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'#',D3
+            BSR     PUSH_STACK
             BSR     GET_EA_EA_DEST
             MOVE.B  #',',D3
             BSR     PUSH_STACK
             BSR     GET_EA_EA_SRC
-            
+            BRA     OP0000_RETURN_BTST
 OP0000_RETURN_BTST
             
             RTS
@@ -4841,6 +4826,7 @@ POINTER_WORD    DS.W       1
 * Ends program
 *---------------------------------------------------------------------------*
             END    START                    * last line of source
+
 
 
 
