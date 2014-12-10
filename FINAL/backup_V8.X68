@@ -50,23 +50,23 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             TRAP    #15
             RTS
 TESTING     
-            EORI.B  #255,(A3)
-            EORI.B  #$25,(A4)+
-            EORI.B  #%10101010,-(A5)
-            EORI.B  #128,$3331
-            EORI.B  #64,$44444441
+            SUBI.B  #255,(A3)
+            SUBI.B  #$25,(A4)+
+            SUBI.B  #%10101010,-(A5)
+            SUBI.B  #128,$3331
+            SUBI.B  #64,$44444441
              
-            EORI.W  #255,(A3)
-            EORI.W  #$25,(A4)+
-            EORI.W  #%10101010,-(A5)
-            EORI.W  #128,$3331
-            EORI.W  #64,$44444441
+            SUBI.W  #255,(A3)
+            SUBI.W  #$25,(A4)+
+            SUBI.W  #%10101010,-(A5)
+            SUBI.W  #128,$3331
+            SUBI.W  #64,$44444441
             
-            EORI.L  #255,(A3)
-            EORI.L  #$25,(A4)+
-            EORI.L  #%10101010,-(A5)
-            EORI.L  #128,$3331
-            EORI.L  #64,$44444441
+            SUBI.L  #255,(A3)
+            SUBI.L  #$25,(A4)+
+            SUBI.L  #%10101010,-(A5)
+            SUBI.L  #128,$3331
+            SUBI.L  #64,$44444441
 
 
 
@@ -413,7 +413,7 @@ NEXTLINES   CLR.B   D6
 *---------------------------------------------------------------------------*
 * JMPTABLE: OP code jump/branch table used to decode and display opcodes
 *---------------------------------------------------------------------------*  
-JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI                       *CMPI/ORI/BTST/EORI -
+JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI                       *FINISHED - JOSEPH
             JMP     OP0001  * MOVE.B                                        *FINISHED - JOSEPH
             JMP     OP0010  * MOVE.L/MOVEA.L                                *FINISHED - JOSEPH
             JMP     OP0011  * MOVE.W/MOVEA.W                                *FINISHED - JOSEPH
@@ -653,7 +653,7 @@ OP0000_EOR_B
             ADDI.L  #%000000111000000,D5   *Add.B  BITS 8-6 TO INDICATE A "(XXX).W" Register (000) 
 
             
-            BRA     OP0000_RETURN
+            BRA     OP0000_RETURN_EOR
 OP0000_EOR_W
             
             MOVE.B  #'W',D3
@@ -664,7 +664,7 @@ OP0000_EOR_W
             ADDI.L  #%0000000111000000,D5   *Add.B  BITS 8-6 TO INDICATE A "(XXX).W" Register (000) 
 
             
-            BRA     OP0000_RETURN
+            BRA     OP0000_RETURN_EOR
 OP0000_EOR_L
             
             MOVE.B  #'L',D3
@@ -675,7 +675,7 @@ OP0000_EOR_L
             ADDI.L  #%0000100111000000,D5   *Add.B  BITS 8-6 TO INDICATE A "(XXX).W" Register (000) 
 
 
-OP0000_RETURN            
+OP0000_RETURN_EOR       
             MOVE.B  #' ',D3
             BSR     PUSH_STACK
             MOVE.B  #'#',D3
@@ -691,37 +691,92 @@ OP0000_RETURN
 * OP_SUBI: decode SUBI.B/.W/.L
 *---------------------------------------------------------------------------* 
 OP_SUBI
-            CLR.L   D1
-            CLR.L   D4
+           
+ *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$00,DEST_REGISTER_FORMAT
+           MOVE.B   #$80,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END
+           MOVE.B   #$20,GET_SRC_START_END
+           
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'S',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'U',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'I',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            
+            *FIGURE OUT SIZE*
+            *00 = BYTE
+            *01 = WORD
+            *10 = LONG
+            * BITS 7&6
+            
+            *COMPARE TO SEE IF IT IS BYTE/WORD/LONG SIZE
             MOVE.L  D5,D1
-            ROR.L   #6,D1       * shift bit 7,6 to bit 1,0
-            CMPI.B  #0,D1
-            BEQ     OP_SUBI_B    * size is byte
-            CMPI.B  #1,D1
-            BEQ     OP_SUBI_W    * size is word
-            CMPI.B  #2,D1
-            BEQ     OP_SUBI_L    * size is long
+            ROR.L   #6,D1
+            ANDI.L  #$03,D1
+            CMPI.B  #%00,D1
+            BEQ     OP0000_SUB_B
+            ANDI.L  #$03,D1
+            CMPI.B  #%01,D1
+            BEQ     OP0000_SUB_W
+            ANDI.L  #$03,D1
+            CMPI.B  #%10,D1
+            BEQ     OP0000_SUB_L
+          
+OP0000_SUB_B
+            
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+            
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #%000000111000000,D5   *Add.B  BITS 8-6 TO INDICATE A "(XXX).W" Register (000) 
 
-OP_SUBI_B    * size is byte    
-            MOVE.B  #0,D4
-            LEA     DISP_SUBI_B,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
             
-OP_SUBI_W    * size is word
-            MOVE.B  #1,D4
-            LEA     DISP_SUBI_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
+            BRA     OP0000_RETURN_SUBI
+OP0000_SUB_W
             
-OP_SUBI_L    * size is long
-            MOVE.B  #2,D4
-            LEA     DISP_SUBI_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+            
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #%0000000111000000,D5   *Add.B  BITS 8-6 TO INDICATE A "(XXX).W" Register (000) 
+
+            
+            BRA     OP0000_RETURN_SUBI
+OP0000_SUB_L
+            
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #%0000001111000000,D5   *Add.B  BITS 8-6 TO INDICATE A "(XXX).W" Register (000) 
+                    
+OP0000_RETURN_SUBI            
+            MOVE.B  #' ',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'#',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_DEST
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
+            
             RTS
+
             
 *---------------------------------------------------------------------------*
 * OP_DATA : unidentified opcode
