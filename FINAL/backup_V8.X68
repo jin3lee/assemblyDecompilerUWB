@@ -50,10 +50,10 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             TRAP    #15
             RTS
 TESTING     
-            BRA     TESTING
-            BRA     TESTING
-            BRA     TESTING
-            BRA     TESTING
+            BLT     TESTING
+            BLT     TESTING
+            BLT     TESTING
+            BLT     TESTING
             
             
             BEQ     TESTING
@@ -453,20 +453,20 @@ NEXTLINES   CLR.B   D6
 *---------------------------------------------------------------------------*
 * JMPTABLE: OP code jump/branch table used to decode and display opcodes
 *---------------------------------------------------------------------------*  
-JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI                       *FINISHED - JOSEPH
-            JMP     OP0001  * MOVE.B                                        *FINISHED - JOSEPH
-            JMP     OP0010  * MOVE.L/MOVEA.L                                *FINISHED - JOSEPH
-            JMP     OP0011  * MOVE.W/MOVEA.W                                *FINISHED - JOSEPH
-            JMP     OP0100  * MOVEM/LEA/NEG/NOT/JSR/RTS                     *FINISHED - JOSEPH
-            JMP     OP0101  * ADDQ                                          *FINISHED - JOSEPH
-            JMP     OP0110  * BRA/Bcc (BEQ/BNE/BLT/BHI)                     *SO FAR COMPLATED (BRA)
+JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI                       *FINISHED - 
+            JMP     OP0001  * MOVE.B                                        *FINISHED - 
+            JMP     OP0010  * MOVE.L/MOVEA.L                                *FINISHED - 
+            JMP     OP0011  * MOVE.W/MOVEA.W                                *FINISHED - 
+            JMP     OP0100  * MOVEM/LEA/NEG/NOT/JSR/RTS                     *FINISHED - 
+            JMP     OP0101  * ADDQ                                          *FINISHED - 
+            JMP     OP0110  * BRA/Bcc (BEQ/BNE/BLT/BHI)                     *FINISHED - 
             JMP     OP0111  * MOVEQ (unassigned)                            *FINISHED - NEVER ASSIGNED
-            JMP     OP1000  * DIVS                                          *FINISHED - JOSEPH
-            JMP     OP1001  * SUB/SUBA                                      *FINISHED - JOSEPH
+            JMP     OP1000  * DIVS                                          *FINISHED - 
+            JMP     OP1001  * SUB/SUBA                                      *FINISHED - 
             JMP     OP1010  * Unassigned                                    *FINISHED - NEVER ASSIGNED
-            JMP     OP1011  * CMP/EOR/CMPA                                  *FINISHED - JOSEPH
-            JMP     OP1100  * MULS/AND                                      *FINISHED - JOSEPH
-            JMP     OP1101  * ADD/ADDA                                      *FINISHED - JOSEPH
+            JMP     OP1011  * CMP/EOR/CMPA                                  *FINISHED - 
+            JMP     OP1100  * MULS/AND                                      *FINISHED - 
+            JMP     OP1101  * ADD/ADDA                                      *FINISHED - 
             JMP     OP1110  * LSR/LSL/ASR/ASL/ROL/ROR
             JMP     OP1111  * Special/Reserved
             
@@ -1728,19 +1728,37 @@ OP0110  	CLR.L   D0
 
             JMP 	OP_DATA
             
-OP_BHI		LEA     DISP_BHI,A1          	
-            MOVE.B  #14,D0
-            TRAP    #15
+OP_BHI		MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'H',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'I',D3
+            BSR     PUSH_STACK
+            MOVE.B  #$9,D3
+            BSR     PUSH_STACK
+            BSR     GET_DISPLACEMENT_ADDRESS
             RTS
 
-OP_BNE		LEA     DISP_BNE,A1          	
-            MOVE.B  #14,D0
-            TRAP    #15
+OP_BNE		MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'N',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'E',D3
+            BSR     PUSH_STACK
+            MOVE.B  #$9,D3
+            BSR     PUSH_STACK
+            BSR     GET_DISPLACEMENT_ADDRESS
             RTS
 
-OP_BEQ		LEA     DISP_BEQ,A1          	
-            MOVE.B  #14,D0
-            TRAP    #15
+OP_BEQ		MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'E',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'Q',D3
+            BSR     PUSH_STACK
+            MOVE.B  #$9,D3
+            BSR     PUSH_STACK
+            BSR     GET_DISPLACEMENT_ADDRESS
             RTS          
             			
 OP_BRA		
@@ -1756,9 +1774,15 @@ OP_BRA
             
             RTS
             
-OP_BLT		LEA     DISP_BLT,A1          
-            MOVE.B  #14,D0
-            TRAP    #15
+OP_BLT		MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'T',D3
+            BSR     PUSH_STACK
+            MOVE.B  #$9,D3
+            BSR     PUSH_STACK
+            BSR     GET_DISPLACEMENT_ADDRESS
             RTS
    
 *---------------------------------------------------------------------------*
