@@ -479,10 +479,138 @@ OP0000
 *---------------------------------------------------------------------------*
 * OP_BTST: display BTST
 *---------------------------------------------------------------------------* 
-OP_BTST     LEA     DISP_BTST,A1
-            MOVE.B  #14,D0
-            TRAP    #15
+OP_BTST     
+            *FIGURE OUT IF it is : Dn,<ea> or #<data>,<ea>
+            *bits #8 indicates which
+            *0 - #immediate format
+            *1 - Dn format
+            CLR.L   D1
+            MOVE.L  D5,D1
+            ROR.L   #8,D1
+            ANDI.L  #1,D1
+            CMPI.B  #1,D1
+            BNE     OP_BTST_IMMEDIATE
+
+           
+           *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$82,DEST_REGISTER_FORMAT
+           MOVE.B   #$00,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END
+           MOVE.B   #$20,GET_SRC_START_END
+           
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'T',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'S',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'T',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            
+            BSR     GET_EA_EA_DEST
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
+            
+            BRA     OP0000_RETURN_BTST
+            
+            
+            *MOVE **** OR **** CMPI
+            
+OP_BTST_IMMEDIATE              
+ *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$00,DEST_REGISTER_FORMAT
+           MOVE.B   #$82,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END
+           MOVE.B   #$20,GET_SRC_START_END
+           
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'C',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'M',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'P',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'I',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            
+            *FIGURE OUT SIZE*
+            *00 = BYTE
+            *01 = WORD
+            *10 = LONG
+            * BITS 7&6
+            
+            *COMPARE TO SEE IF IT IS BYTE/WORD/LONG SIZE
+            MOVE.L  D5,D1
+            ROR.L   #6,D1
+            ANDI.L  #$03,D1
+            CMPI.B  #%00,D1
+            BEQ     OP0000_BTST_B
+            CMPI.B  #%01,D1
+            BEQ     OP0000_BTST_W
+            ANDI.L  #$03,D1
+            CMPI.B  #%10,D1
+            BEQ     OP0000_BTST_L
+
+OP0000_BTST_B
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+*GET DATA FROM ADDQ AND PRINT #0-8
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$01C0,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
+            BSR     GET_EA_EA_DEST
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
+            BRA     OP0000_RETURN_BTST
+
+OP0000_BTST_W
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+*GET DATA FROM ADDQ AND PRINT #0-8
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$01C0,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
+            BSR     GET_EA_EA_DEST
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
+            BRA     OP0000_RETURN_BTST
+
+OP0000_BTST_L
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            *GET DATA FROM ADDQ AND PRINT #0-8
+            *CHANGE D5 SO THAT BITS 5-3(source mode) REFLECT  <Dn mode> for get_ea_ea format
+            ANDI.L  #$F03F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
+            ADDI.L  #$03C0,D5   *Add.B  BITS 8-6 TO INDICATE A "An" Register (000) 
+            BSR     GET_EA_EA_DEST
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
+            
+OP0000_RETURN_BTST
+            
             RTS
+
 
 *---------------------------------------------------------------------------*
 * OP_EORI: decode and display EORI
