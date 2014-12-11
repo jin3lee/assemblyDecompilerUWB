@@ -50,17 +50,28 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             TRAP    #15
             RTS
 TESTING     
-            LSR.B   D1,D0
-            LSR.B   #5,D0
+
             LSR.W   #5,D0
             LSR.W   (A1)
             LSR.W   (A2)+
             LSR.W   -(A3)
             LSR.W   $1234
-            LSR.W   $12345678   
-            LSR.L   D1,D0
-            LSR.L   #5,D0
+            LSR.W   $12345678 
 
+            
+            LSR.B   #5,D0
+            LSR.W   #5,D0
+            LSR.W   (A1)
+
+            ASR.B   D1,D0
+            ASR.B   #5,D0
+            ASR.W   #5,D0
+            ASR.W   (A1)
+
+            ROR.B   D1,D0
+            ROR.B   #5,D0
+            ROR.W   #5,D0
+            ROR.W   (A1)
 
 
             RTS
@@ -468,7 +479,7 @@ JMPTABLE    JMP     OP0000  * CMPI/ORI/BTST/EORI/SUBI                       *FIN
             JMP     OP1011  * CMP/EOR/CMPA                                  *FINISHED - 
             JMP     OP1100  * MULS/AND                                      *FINISHED - 
             JMP     OP1101  * ADD/ADDA                                      *FINISHED - 
-            JMP     OP1110  * LSR/LSL/ASR/ASL/ROL/ROR
+            JMP     OP1110  * LSR/LSL/ASR/ASL/ROL/ROR                       *FINISHED - LSR/LSL
             JMP     OP1111  * Special/Reserved
             
 *---------------------------------------------------------------------------*
@@ -3230,74 +3241,113 @@ OP1110      CLR.L   D0
             MOVE.L  D5,D1
             
             *1)CHECK FOR MEMORY ROTATE/SHIFT FIRST
-            * check for LSL 
-            ANDI.L  #%1111111111000000,D1
-            CMPI.L  #%1110001111000000,D1
-            BEQ     OP_LSL
-            
-                            
-            MOVE.L  D5,D1
-            ANDI.L  #%1111111111000000,D1
-            CMPI.L  #%1110001011000000,D1
-            BEQ     OP_LSR
-            
-                            
-            MOVE.L  D5,D1
-            ANDI.L  #%1111111111000000,D1
-            CMPI.L  #%1110000111000000,D1
-            BEQ     OP_ASL
-            
-                            
-            MOVE.L  D5,D1
-            ANDI.L  #%1111111111000000,D1
-            CMPI.L  #%1110000011000000,D1
-            BEQ     OP_ASR
-            
-                            
-            MOVE.L  D5,D1
+            MOVE.L  D5,D1                   *RESET
             ANDI.L  #%1111111011000000,D1
-            CMPI.L  #%1110011111000000,D1
-            BEQ     OP_ROL
+            CMPI.L  #%1110000011000000,D1
+            BEQ     OP_ASX                  *ASX
+
             
-                            
-            MOVE.L  D5,D1
-            ANDI.L  #%1111111111000000,D1
+            ANDI.L  #%1111111011000000,D1
             CMPI.L  #%1110011011000000,D1
-            BEQ     OP_ROR
+            BEQ     OP_ROX                  *ROX
 
-            *2)IF NOT THOSE, THAN CHECK FOR IMMEDIATE/REGISTER SHIFTS/ROTATE
-            MOVE.L  D5,D1
-            ANDI.L  #%1111000100011000,D1
-            CMPI.L  #%1110000100001000,D1
-            BEQ     OP_LSL_2
-            
-            MOVE.L  D5,D1
-            ANDI.L  #%1111000100011000,D1
+            MOVE.L  D5,D1                   *RESET
+            ANDI.L  #%1111111011000000,D1
+            CMPI.L  #%1110001011000000,D1
+            BEQ     OP_LSX                  *LSX
+
+  
+            *2) CHECK FOR REGISTER SHIFTS
+            MOVE.L  D5,D1                   *RESET
+            ANDI.L  #%1111000000011000,D1
             CMPI.L  #%1110000000001000,D1
-            BEQ     OP_LSR_2
+            BEQ     OP_LSX                  *LSX
+
             
-            MOVE.L  D5,D1
-            ANDI.L  #%1111000100011000,D1
-            CMPI.L  #%1110000100000000,D1
-            BEQ     OP_ASL_2   
-         
-            MOVE.L  D5,D1
-            ANDI.L  #%1111000100011000,D1
+            MOVE.L  D5,D1                   *RESET
+            ANDI.L  #%1111000000011000,D1
             CMPI.L  #%1110000000000000,D1
-            BEQ     OP_ASR_2
+            BEQ     OP_ASX                  *ASX
+
             
-            MOVE.L  D5,D1
-            ANDI.L  #%1111000100011000,D1
-            CMPI.L  #%1110000100011000,D1
-            BEQ     OP_ROL_2   
-         
-            MOVE.L  D5,D1
-            ANDI.L  #%1111000100011000,D1
+            MOVE.L  D5,D1                   *RESET
+            ANDI.L  #%1111000000011000,D1
             CMPI.L  #%1110000000011000,D1
-            BEQ     OP_ROR_2
+            BEQ     OP_ROX                  *ROX
 
 
+                        
+OP1110_RETURN       
+            RTS
+
+
+*---------------------------------------------------------------------------*
+* OP_LSR: decode and display LSR
+*---------------------------------------------------------------------------*        
+OP_LSX     
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'S',D3
+            BSR     PUSH_STACK
             
+            *FIND IF ITS RIGHT OR LEFT DIR
+            MOVE.L  D5,D1                   *RESET
+            ANDI.L  #%0000000100000000,D1
+            CMPI.L  #%0000000000000000,D1   * RIGHT CHECK
+            BEQ     OP_LSX_R      
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            BRA     OP_LSX_DIR
+OP_LSX_R           
+            MOVE.B  #'R',D3
+            BSR     PUSH_STACK
+            
+OP_LSX_DIR
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+
+            *FIND SIZE OF OPCODE
+            MOVE.L  D5,D1                   *RESET
+            ANDI.L  #%0000000011000000,D1
+            CMPI.L  #%0000000010000000,D1            *L
+            BEQ     OP_LSX_L
+            CMPI.L  #%0000000001000000,D1            *W
+            BEQ     OP_LSX_W  
+            CMPI.L  #%0000000000000000,D1            *W
+            BEQ     OP_LSX_B       
+                                    *OTHERWISE B    
+            
+OP_LSX_L
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            BRA     OP_LSX_CHECK_FORMAT 
+OP_LSX_W
+            MOVE.B  #'W',D3
+            BSR     PUSH_STACK
+            BRA     OP_LSX_CHECK_FORMAT 
+OP_LSX_B
+            MOVE.B  #'B',D3
+            BSR     PUSH_STACK
+            BRA     OP_LSX_CHECK_FORMAT 
+                      
+OP_LSX_CHECK_FORMAT              
+            * CHECKS IF ITS A MEMORY SHIFT FORMAT
+            MOVE.L  D5,D1                   *RESET
+            ANDI.L  #%1111111011000000,D1
+            CMPI.L  #%1110001011000000,D1
+            BEQ     OP_LSX_MEMORY           
+            
+            *ELSE ITS REGISTER
+OP_LSX_REGISTER
+           *TODO
+           *CHECK IF ITS INTERMEDIATE OR REGISTER
+           MOVE.L  D5,D1                   *RESET
+           ROR.L   #5,D1 
+           ANDI.L  #1,D1
+           CMPI.L  #0,D1                    * 1=DATA REGISTER 0= INTERMEDIATE(1-7)
+           BEQ     OP_LSX_INTERMEDIATE
+           *ELSE ITS DATA REGISTER
+
            *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
            MOVE.B   #$82,DEST_REGISTER_FORMAT
            MOVE.B   #$00,SRC_REGISTER_FORMAT
@@ -3306,245 +3356,177 @@ OP1110      CLR.L   D0
            MOVE.B   #$B9,GET_DST_START_END
            MOVE.B   #$20,GET_SRC_START_END
            
+           *SETS BOTH SRC/DEST MODES TO "Dn"
+           ANDI.L   #%1111111000000111,D5
+           ADDI.L   #%0000000000000000,D5
+           
             *CLEAR D3
             CLR.L   D3
-            *LOAD STACK WITH THIS OPMODE
-            BSR     PUSH_STACK
-            MOVE.B  #'M',D3
-            BSR     PUSH_STACK
-            MOVE.B  #'O',D3
-            BSR     PUSH_STACK
-            MOVE.B  #'V',D3
-            BSR     PUSH_STACK
-            MOVE.B  #'E',D3
-            BSR     PUSH_STACK
-            MOVE.B  #'.',D3
-            BSR     PUSH_STACK
-            MOVE.B  #'B',D3
-            BSR     PUSH_STACK
-            
-            BSR     GET_EA_EA_SRC
+         
             MOVE.B  #',',D3
             BSR     PUSH_STACK
-            BSR     GET_EA_EA_DEST
+            BSR     GET_EA_EA_SRC
             
             RTS
 
+OP_LSX_INTERMEDIATE
+           *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$82,DEST_REGISTER_FORMAT
+           MOVE.B   #$00,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END
+           MOVE.B   #$20,GET_SRC_START_END
+           
+           *SETS BOTH SRC/DEST MODES TO "Dn"
+           ANDI.L   #%1111111000000111,D5
+           ADDI.L   #%0000000000000000,D5
+           
+            *CLEAR D3
+            CLR.L   D3
+           
+*-------------------------grabbing #immediate data-----------------------*
 
+*GET DATA FROM ADDQ AND PRINT #0-8
+            MOVE.B  #' ',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'#',D3
+            BSR     PUSH_STACK 
 
-
-*---------------------------------------------------------------------------*
-* OP_LSR: decode and display LSR
-*---------------------------------------------------------------------------*        
-OP_LSR     
-
+                     
+            *GET DATA #   
+            MOVE.L  D5,D1
+            ROR.L   #6,D1            
+            ROR.L   #3,D1
+            ANDI.L  #$07,D1
             
+            CMPI.B  #%000,D1
+            BEQ     OP_LSX_0
+            CMPI.B  #%001,D1
+            BEQ     OP_LSX_1
+            CMPI.B  #%010,D1
+            BEQ     OP_LSX_2
+            CMPI.B  #%011,D1
+            BEQ     OP_LSX_3
+            CMPI.B  #%100,D1
+            BEQ     OP_LSX_4
+            CMPI.B  #%101,D1
+            BEQ     OP_LSX_5
+            CMPI.B  #%110,D1
+            BEQ     OP_LSX_6
+            CMPI.B  #%111,D1
+            BEQ     OP_LSX_7
+            
+OP_LSX_0
+            MOVE.B  #'0',D3
+            BSR     PUSH_STACK
+            BRA     OP_LSX_AFTER_IMMEDIATE            
+OP_LSX_1
+            MOVE.B  #'1',D3
+            BSR     PUSH_STACK
+            BRA     OP_LSX_AFTER_IMMEDIATE            
+OP_LSX_2
+            MOVE.B  #'2',D3
+            BSR     PUSH_STACK
+            BRA     OP_LSX_AFTER_IMMEDIATE            
+OP_LSX_3
+            MOVE.B  #'3',D3
+            BSR     PUSH_STACK
+            BRA     OP_LSX_AFTER_IMMEDIATE            
+OP_LSX_4
+            MOVE.B  #'4',D3
+            BSR     PUSH_STACK
+            BRA     OP_LSX_AFTER_IMMEDIATE           
+OP_LSX_5
+            MOVE.B  #'5',D3
+            BSR     PUSH_STACK
+            BRA     OP_LSX_AFTER_IMMEDIATE
+OP_LSX_6
+            MOVE.B  #'6',D3
+            BSR     PUSH_STACK
+            BRA     OP_LSX_AFTER_IMMEDIATE
+OP_LSX_7
+            MOVE.B  #'7',D3
+            BSR     PUSH_STACK
+            BRA     OP_LSX_AFTER_IMMEDIATE
+
+OP_LSX_8
+            MOVE.B  #'8',D3
+            BSR     PUSH_STACK
+            
+OP_LSX_AFTER_IMMEDIATE            
+
+*-------------------------grabbing #immediate data-----------------------*
+
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            BSR     GET_EA_EA_SRC
+            
+            RTS
+
+            BRA     OP_LSX_RETURN
+            
+            
+OP_LSX_MEMORY
+           *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$83,SRC_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$B9,GET_DST_START_END
+           MOVE.B   #$20,GET_SRC_START_END
+           
+           *pop previous thing out
+           BSR      POP_STACK
+           
+           *print w
+           MOVE.B  #'W',D3
+           BSR     PUSH_STACK
+           BSR     GET_EA_EA_SRC
+
+OP_LSX_RETURN
+            BRA     OP1110_RETURN  
             
 *---------------------------------------------------------------------------*
 * OP_LSR: decode and display LSR IMMEDIATE/REGISTER
 *---------------------------------------------------------------------------*        
-OP_LSR_2      
+OP_ASX
+            LEA     DISP_ASR_B,A1
+            MOVE.B  #14,D0
+            TRAP    #15
 
-            *CLEAR D3
-            CLR.L   D3
-            *LOAD STACK WITH THIS OPMODE
-            BSR     PUSH_STACK
-            MOVE.B  #'L',D3
-            BSR     PUSH_STACK
-            MOVE.B  #'S',D3
-            BSR     PUSH_STACK
-            MOVE.B  #'R',D3
-            BSR     PUSH_STACK
-            MOVE.B  #'.',D3
-            BSR     PUSH_STACK
-            
-            *FIND SIZE
-            MOVE.L  D5,D3
-            ROR.L   #6,D3
-            ANDI.L  #3,D3
-            CMPI.L  #%00,D3     * 00 == BYTE
-            BEQ     OP_LSR_2_B
-            CMPI.L  #%01,D3     * 01 == WORD
-            BEQ     OP_LSR_2_W
-            CMPI.L  #%10,D3     * 10 == LONG
-            BEQ     OP_LSR_2_L
-
-         
-            *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
-            MOVE.B   #$00,DEST_REGISTER_FORMAT               *doesn't allow An in either dest or src formats
-            MOVE.B   #$00,SRC_REGISTER_FORMAT                *THIS IS WHAT ARE THE POSSIBLE EA,EA
-           
-            *INITIALIZE WHERE TO FIND REGISTER NUMBERS
-            MOVE.B   #$B9,GET_DST_START_END                  *THIS IS THE WHERE WE CAN FIND REGISTER NUMBERS
-            MOVE.B   #$20,GET_SRC_START_END
-
-OP_LSR_2_B
-
-            MOVE.B  #'B',D3
-            BSR     PUSH_STACK
-            MOVE.L  D5,D3
-            ROR.L   #5,D3
-            ANDI.L  #$1,D3
-            CMPI.L  #0,D3
-            BEQ     OP_LSR_2_B_I
-            
-OP_LSR_2_B_R           
-            *IF REGISTER THAN DO THIS
-            ANDI.L  #$FE07,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
-            ADDI.L  #$0008,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000) 
-            
-            BSR     GET_EA_EA_DEST
-            MOVE.B  #',',D3
-            BSR     PUSH_STACK
-            BSR     GET_EA_EA_SRC
-            
-            BRA     OP_LSR_2_RETURN
-
-*DEBUG NOT DONE
-OP_LSR_2_B_I
-            *IF IMMEDIATE THAN DO THIS
-            ANDI.L  #$FE3F,D5   *inverse mask bits 8-6 with 1111(F[15]) 1110(E[14]) 0011(3) 1111(F[15]), TO REPLACE OPMODE WITH DN-MODE
-            ADDI.L  #$0000,D5   *Add.B  BITS 8-6 TO INDICATE A Dn Register (000)
-            
-            *GET NUMBER AT REGISTER
-            MOVE.L  D5,D3
-            ROR.L   #6,D3
-            ROR.L   #3,D3
-            ANDI.L  #7,D3
-            CMPI.B  #%000,D1
-            BEQ     OP_LSR_2_B_0
-            CMPI.B  #%001,D1
-            BEQ     OP_LSR_2_B_1
-            CMPI.B  #%010,D1
-            BEQ     OP_LSR_2_B_2
-            CMPI.B  #%011,D1
-            BEQ     OP_LSR_2_B_3
-            CMPI.B  #%100,D1
-            BEQ     OP_LSR_2_B_4
-            CMPI.B  #%101,D1
-            BEQ     OP_LSR_2_B_5
-            CMPI.B  #%110,D1
-            BEQ     OP_LSR_2_B_6
-            CMPI.B  #%111,D1
-            BEQ     OP_LSR_2_B_7
-            
-OP_LSR_2_B_0
-            MOVE.B  #'0',D3
-            BSR     PUSH_STACK
-            BRA     OP_LSR_2_B_RETURN2            
-OP_LSR_2_B_1
-            MOVE.B  #'1',D3
-            BSR     PUSH_STACK
-            BRA     OP_LSR_2_B_RETURN2            
-OP_LSR_2_B_2
-            MOVE.B  #'2',D3
-            BSR     PUSH_STACK
-            BRA     OP_LSR_2_B_RETURN2            
-OP_LSR_2_B_3
-            MOVE.B  #'3',D3
-            BSR     PUSH_STACK
-            BRA     OP_LSR_2_B_RETURN2            
-OP_LSR_2_B_4
-            MOVE.B  #'4',D3
-            BSR     PUSH_STACK
-            BRA     OP_LSR_2_B_RETURN2            
-OP_LSR_2_B_5
-            MOVE.B  #'5',D3
-            BSR     PUSH_STACK
-            BRA     OP_LSR_2_B_RETURN2
-OP_LSR_2_B_6
-            MOVE.B  #'6',D3
-            BSR     PUSH_STACK
-            BRA     OP_LSR_2_B_RETURN2
-OP_LSR_2_B_7
-            MOVE.B  #'7',D3
-            BSR     PUSH_STACK
-            BRA     OP_LSR_2_B_RETURN2
-
-OP_LSR_2_B_8
-            MOVE.B  #'8',D3
-            BSR     PUSH_STACK
-            
-OP_LSR_2_B_RETURN2            
-            MOVE.B  #',',D3
-            BSR     PUSH_STACK
-            BSR     GET_EA_EA_SRC
-            
-            RTS
-
-
-            
-            
-OP_LSR_2_W
-            MOVE.B  #'W',D3
-            BSR     PUSH_STACK
-
-            BRA     OP_LSR_2_RETURN
-OP_LSR_2_L
-            MOVE.B  #'L',D3
-            BSR     PUSH_STACK
-
-OP_LSR_2_RETURN
-        RTS
-            
-            *FIGURE OUT SIZE
- 
+            BRA     OP1110_RETURN  
+    
 *---------------------------------------------------------------------------*
-* OP_LSL: decode and display LSL
-*---------------------------------------------------------------------------*             
-OP_LSL      
-            
- 
-*---------------------------------------------------------------------------*
-* OP_LSL: decode and display LSL
-*---------------------------------------------------------------------------*             
-OP_LSL_2   
-            
- 
-*---------------------------------------------------------------------------*
-* OP_ASR: decode and display ASR
-*---------------------------------------------------------------------------*             
-OP_ASR      
- 
-*---------------------------------------------------------------------------*
-* OP_ASR: decode and display ASR
-*---------------------------------------------------------------------------*             
-OP_ASR_2     
+* OP_ROX: decode and display LSR IMMEDIATE/REGISTER
+*---------------------------------------------------------------------------*        
+OP_ROX
 
-     
-     
-*---------------------------------------------------------------------------*
-* OP_ASL: decode and display ASL
-*---------------------------------------------------------------------------*         
-OP_ASL      
-            
-*---------------------------------------------------------------------------*
-* OP_ASL: decode and display ASL
-*---------------------------------------------------------------------------*         
-OP_ASL_2     
-            
+            LEA     DISP_ROR_B,A1
+            MOVE.B  #14,D0
+            TRAP    #15
 
-*---------------------------------------------------------------------------*
-* OP_ROR: decode and display ROR
-*---------------------------------------------------------------------------*             
-OP_ROR      
+            BRA     OP1110_RETURN  
 
 
-*---------------------------------------------------------------------------*
-* OP_ROR: decode and display ROR
-*---------------------------------------------------------------------------*             
-OP_ROR_2    
 
-*---------------------------------------------------------------------------*
-* OP_ROL: decode and display ROL
-*---------------------------------------------------------------------------*             
-OP_ROL     
-            
-*---------------------------------------------------------------------------*
-* OP_ROL: decode and display ROL
-*---------------------------------------------------------------------------*             
-OP_ROL_2    
-            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
             
 *---------------------------------------------------------------------------*
@@ -5138,6 +5120,7 @@ POINTER_WORD    DS.W       1
 * Ends program
 *---------------------------------------------------------------------------*
             END    START                    * last line of source
+
 
 
 

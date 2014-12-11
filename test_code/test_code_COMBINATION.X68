@@ -589,11 +589,53 @@ START
             BRA     TESTING
             BRA     TESTING
             
+
+**************************************************************************************************************LSX/RSX/ROX**
+TESTING
+            LSR.B   D1,D0
+            LSR.B   #5,D0
+           
+            LSR.W   #5,D0
+            LSR.W   (A1)
+            LSR.W   (A2)+
+            LSR.W   -(A3)
+            LSR.W   $1234
+            LSR.W   $12345678  
             
+            LSR.L   D1,D0
+            LSR.L   #5,D0
+            
+            ASR.B   D1,D0
+            ASR.B   #5,D0
+            ASR.W   #5,D0
+            ASR.W   (A1)
+            ASR.W   (A2)+
+            ASR.W   -(A3)
+            ASR.W   $1234
+            ASR.W   $12345678  
+            ASR.L   D1,D0
+            ASR.L   #5,D0
+
+            ROR.B   D1,D0
+            ROR.B   #5,D0
+            ROR.W   #5,D0
+            ROR.W   (A1)
+            ROR.W   (A2)+
+            ROR.W   -(A3)
+            ROR.W   $1234
+            ROR.W   $12345678  
+            ROR.L   D1,D0
+            ROR.L   #5,D0
+            
+            
+            LSR.L   #5,D0
+            LSR.W   #5,D0
+            LSR.B   #5,D0
 
     MOVE.B  #9,D0
     TRAP    #15
     END    START        
+
 
 
 
