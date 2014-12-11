@@ -4,7 +4,7 @@
 * Date       :
 * Description:
 *-----------------------------------------------------------
-  ORG    $6000
+  ORG    $4000
 START   
 
 
@@ -63,15 +63,10 @@ START
             MOVE.W  D2,(A2)
             MOVE.W  D3,(A3)+
             MOVE.W  D4,-(A4)
-            MOVE.W  D5,$3333
+
             MOVE.W  D6,$44444444
             
-            *MOVE.B  A1,D1           *NOT ALLOWED FOR BYTE SIZE OPERATION (CAN'T RUN THIS)
-            *MOVE.B  A2,(A2)
-            *MOVE.B  A3,(A3)+
-            *MOVE.B  A4,-(A4)
-            *MOVE.B  A5,$3333
-            *MOVE.B  A6,$44444444
+        
             
             MOVE.W  (A1),D1
             MOVE.W  (A2),(A2)
@@ -602,6 +597,14 @@ TESTING
             LSR.W   $1234
             LSR.W   $12345678  
             
+            LSR.L   #1,D6
+            LSR.W   #2,D5
+            LSR.B   #3,D4
+            
+            LSR.L   D0,D0
+            LSR.W   D0,D0
+            LSR.B   D0,D0
+            
             LSR.L   D1,D0
             LSR.L   #5,D0
             
@@ -631,6 +634,39 @@ TESTING
             LSR.L   #5,D0
             LSR.W   #5,D0
             LSR.B   #5,D0
+
+
+**************************************************************************************************************ASR**
+            ASR.B   D1,D0
+            ASR.W   D2,D0
+            ASR.L   D3,D0
+            
+            ASR.B   #5,D0
+            ASR.W   #5,D0
+            ASR.L   #5,D0
+
+            ASR.W   #5,D0
+            ASR.W   (A1)            
+            ASR.W   (A2)+            
+            ASR.W   -(A3)           
+            ASR.W   $1234           
+            ASR.W   $12345678       
+
+**************************************************************************************************************ASl**
+            ASL.B   D1,D0
+            ASL.W   D2,D0
+            ASL.L   D3,D0
+            
+            ASL.B   #5,D0
+            ASL.W   #5,D0
+            ASL.L   #5,D0
+
+            ASL.W   #5,D0
+            ASL.W   (A1)            
+            ASL.W   (A2)+            
+            ASL.W   -(A3)           
+            ASL.W   $1234           
+            ASL.W   $12345678        
 
     MOVE.B  #9,D0
     TRAP    #15

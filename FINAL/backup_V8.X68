@@ -51,18 +51,87 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             RTS
 TESTING     
 
-            ROR.W   (A1)            *BUGGED
-            ROR.W   (A2)+            *BUGGED
-            ROR.W   -(A3)            *BUGGED
-            ROR.W   $1234            *BUGGED
-            ROR.W   $12345678             *BUGGED
+            LSR.B   D1,D0
+            LSR.B   #5,D0
+           
+            LSR.W   #5,D0
+            LSR.W   (A1)
+            LSR.W   (A2)+
+            LSR.W   -(A3)
+            LSR.W   $1234
+            LSR.W   $12345678  
             
-            ROL.W   (A1)            *BUGGED
-            ROL.W   (A2)+            *BUGGED
-            ROL.W   -(A3)            *BUGGED
-            ROL.W   $1234            *BUGGED
-            ROL.W   $12345678             *BUGGED
+            LSR.L   #1,D6
+            LSR.W   #2,D5
+            LSR.B   #3,D4
             
+            LSR.L   D0,D0
+            LSR.W   D0,D0
+            LSR.B   D0,D0
+            
+            LSR.L   D1,D0
+            LSR.L   #5,D0
+            
+            ASR.B   D1,D0
+            ASR.B   #5,D0
+            ASR.W   #5,D0
+            ASR.W   (A1)
+            ASR.W   (A2)+
+            ASR.W   -(A3)
+            ASR.W   $1234
+            ASR.W   $12345678  
+            ASR.L   D1,D0
+            ASR.L   #5,D0
+
+            ROR.B   D1,D0
+            ROR.B   #5,D0
+            ROR.W   #5,D0
+            ROR.W   (A1)
+            ROR.W   (A2)+
+            ROR.W   -(A3)
+            ROR.W   $1234
+            ROR.W   $12345678  
+            ROR.L   D1,D0
+            ROR.L   #5,D0
+            
+            
+            LSR.L   #5,D0
+            LSR.W   #5,D0
+            LSR.B   #5,D0
+
+
+**************************************************************************************************************ASR**
+            ASR.B   D1,D0
+            ASR.W   D2,D0
+            ASR.L   D3,D0
+            
+            ASR.B   #5,D0
+            ASR.W   #5,D0
+            ASR.L   #5,D0
+
+            ASR.W   #5,D0
+            ASR.W   (A1)            
+            ASR.W   (A2)+            
+            ASR.W   -(A3)           
+            ASR.W   $1234           
+            ASR.W   $12345678       
+
+**************************************************************************************************************ASl**
+            ASL.B   D1,D0
+            ASL.W   D2,D0
+            ASL.L   D3,D0
+            
+            ASL.B   #5,D0
+            ASL.W   #5,D0
+            ASL.L   #5,D0
+
+            ASL.W   #5,D0
+            ASL.W   (A1)            
+            ASL.W   (A2)+            
+            ASL.W   -(A3)           
+            ASL.W   $1234           
+            ASL.W   $12345678    
+           
             RTS
 *---------------------------------------------------------------------------*
 * START_ADDR: Compute the starting address
@@ -434,15 +503,15 @@ OUTPUT_PROCESSED_DATA
             MOVE.B  #0,D4                    * RESETS [D4] ERROR FLAG
 DISPLAY_30_LINES
             * display 30 lines per page
-            ADDI.B  #1,D6
-            CMPI.B  #30,D6
+            ADDI.L  #1,D7
+            CMPI.L  #25,D7
             BGE     NEXTLINES
             BRA     MAIN
           
 *---------------------------------------------------------------------------*
 * NEXTLINES: receive input from user to print the next 30 lines
 *---------------------------------------------------------------------------*  
-NEXTLINES   CLR.B   D6
+NEXTLINES   CLR.L   D7
             LEA     DISP_NEXT,A1
             MOVE.B  #14,D0
             TRAP    #15
