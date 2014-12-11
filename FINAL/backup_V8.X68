@@ -49,90 +49,6 @@ INTRO       LEA     WELCOME,A1              * Load PROMPT_START
             MOVE.B  #14,D0                  * Display A1
             TRAP    #15
             RTS
-TESTING     
-
-            LSR.B   D1,D0
-            LSR.B   #5,D0
-           
-            LSR.W   #5,D0
-            LSR.W   (A1)
-            LSR.W   (A2)+
-            LSR.W   -(A3)
-            LSR.W   $1234
-            LSR.W   $12345678  
-            
-            LSR.L   #1,D6
-            LSR.W   #2,D5
-            LSR.B   #3,D4
-            
-            LSR.L   D0,D0
-            LSR.W   D0,D0
-            LSR.B   D0,D0
-            
-            LSR.L   D1,D0
-            LSR.L   #5,D0
-            
-            ASR.B   D1,D0
-            ASR.B   #5,D0
-            ASR.W   #5,D0
-            ASR.W   (A1)
-            ASR.W   (A2)+
-            ASR.W   -(A3)
-            ASR.W   $1234
-            ASR.W   $12345678  
-            ASR.L   D1,D0
-            ASR.L   #5,D0
-
-            ROR.B   D1,D0
-            ROR.B   #5,D0
-            ROR.W   #5,D0
-            ROR.W   (A1)
-            ROR.W   (A2)+
-            ROR.W   -(A3)
-            ROR.W   $1234
-            ROR.W   $12345678  
-            ROR.L   D1,D0
-            ROR.L   #5,D0
-            
-            
-            LSR.L   #5,D0
-            LSR.W   #5,D0
-            LSR.B   #5,D0
-
-
-**************************************************************************************************************ASR**
-            ASR.B   D1,D0
-            ASR.W   D2,D0
-            ASR.L   D3,D0
-            
-            ASR.B   #5,D0
-            ASR.W   #5,D0
-            ASR.L   #5,D0
-
-            ASR.W   #5,D0
-            ASR.W   (A1)            
-            ASR.W   (A2)+            
-            ASR.W   -(A3)           
-            ASR.W   $1234           
-            ASR.W   $12345678       
-
-**************************************************************************************************************ASl**
-            ASL.B   D1,D0
-            ASL.W   D2,D0
-            ASL.L   D3,D0
-            
-            ASL.B   #5,D0
-            ASL.W   #5,D0
-            ASL.L   #5,D0
-
-            ASL.W   #5,D0
-            ASL.W   (A1)            
-            ASL.W   (A2)+            
-            ASL.W   -(A3)           
-            ASL.W   $1234           
-            ASL.W   $12345678    
-           
-            RTS
 *---------------------------------------------------------------------------*
 * START_ADDR: Compute the starting address
 *---------------------------------------------------------------------------*
@@ -1343,6 +1259,7 @@ OP0100
             * check for RTS
             CMPI.W  #$4E75,D1   * 0100 1110 0111 0101
             BEQ     OP_RTS
+
             
             * check for JSR     * 0100 1110 10 xxx (ea mode) xxx (ea reg)
             CLR.L   D1 
@@ -1351,12 +1268,14 @@ OP0100
             CMPI.W  #$0E00,D1
             BEQ     OP_JSR
 
+            
             * check for NEG     * 0100 0100 xx (size) xxx (ea mode) xxx (ea reg) 
             CLR.L   D1 
             MOVE.L  D5,D1  
             ANDI.W  #$0F00,D1
             CMPI.W  #$0400,D1
             BEQ     OP_NEG
+
             
             * check for NOT     * 0100 0110 xx (size) xxx (ea mode) xxx (ea reg)
             CLR.L   D1 
@@ -1364,6 +1283,7 @@ OP0100
             ANDI.W  #$0F00,D1
             CMPI.W  #$0600,D1
             BEQ     OP_NOT
+
             
             * check for LEA     * 0100 xxx (reg) 111 xxx (ea mode) xxx (ea reg)
             CLR.L   D1 
@@ -1372,42 +1292,111 @@ OP0100
             ANDI.L  #7,D1
             CMPI.L  #7,D1
             BEQ     OP_LEA
+
             
             * check for MOVEM   * 0100 1 x 001 x (size) xxx (ea mode) xxx (ea reg)
             CLR.L   D1 
-            MOVE.L  D5,D1  
-            ROL.W   #5,D1
-            CMPI.B  #1,D1
-            BNE     OP_DATA
-            ROL.W   #4,D1
-            CMPI.B  #1,D1
-            BNE     OP_DATA
-            ROL.W   #1,D1
-            CMPI.B  #0,D1
-            BEQ     OP_MOVEM_W
-            CMPI.B  #1,D1
-            BEQ     OP_MOVEM_L
-            JMP     OP_DATA
+            MOVE.L  D5,D1
+            ANDI.L  #%1111101110000000,D1
+            CMPI.L  #%0100101110000000,D1
+            BRA     OP_MOVEM
+            
+OP_RETURNOFTHEKING
+            RTS
 
 *---------------------------------------------------------------------------*
 * OP_MOVEM_W: display MOVEM_W
 *---------------------------------------------------------------------------*    
-OP_MOVEM_W  
-            MOVE.B  #1,D4
-            LEA     DISP_MOVEM_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
+OP_MOVEM  
+
+           *INITIALIZE EA FORMAT STANDARDS: IF AN,(AN),-(AN)...ETC COULD BE USED
+           MOVE.B   #$8D,SRC_REGISTER_FORMAT
+           MOVE.B   #$00,DEST_REGISTER_FORMAT
+           
+           *INITIALIZE WHERE TO FIND REGISTER NUMBERS
+           MOVE.B   #$20,GET_SRC_START_END
+           
+            *CLEAR D3
+            CLR.L   D3
+            *LOAD STACK WITH THIS OPMODE
+            BSR     PUSH_STACK
+            MOVE.B  #'M',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'O',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'V',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'E',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'M',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'.',D3
+            BSR     PUSH_STACK
+            
+           *CHECK SIZE
+           CLR.L    D1
+           MOVE.L   D5,D1
+           ANDI.L   #%0000010000000000,D1
+           CMPI.L   #%0000010000000000,D1
+           BEQ      OP_MOVEM_L
+           
+OP_MOVEM_W
+           MOVE.B  #'W',D3
+           BSR     PUSH_STACK
+           BRA      OP_MOVEM_CONTINUE
+OP_MOVEM_L
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+
+OP_MOVEM_CONTINUE
+                      
+           *CHECK DIRECTION
+           CLR.L    D1
+           MOVE.L   D5,D1
+           ANDI.L   #%0000000001000000,D1
+           CMPI.L   #%0000000001000000,D1
+           BEQ      OP_MOVEM_MR
+           
+OP_MOVEM_RM
+            MOVE.B  #' ',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'E',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'A',D3
+            BSR     PUSH_STACK
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'I',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'S',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'T',D3
+            BSR     PUSH_STACK
+
+          
+OP_MOVEM_MR
+            MOVE.B  #' ',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'L',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'I',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'S',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'T',D3
+            BSR     PUSH_STACK
+            MOVE.B  #',',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'E',D3
+            BSR     PUSH_STACK
+            MOVE.B  #'A',D3
+            BSR     PUSH_STACK
+
             RTS
 
-*---------------------------------------------------------------------------*
-* OP_MOVEM_L: display MOVEM_L
-*---------------------------------------------------------------------------*
-OP_MOVEM_L  
-            MOVE.B  #2,D4
-            LEA     DISP_MOVEM_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
+
    
 *---------------------------------------------------------------------------*
 * OP_LEA: decode and display LEA
@@ -1587,10 +1576,12 @@ OP_NOT_PRINT_EA
 *---------------------------------------------------------------------------*
 * OP_JSR: display JSR     
 *---------------------------------------------------------------------------*
-OP_JSR      LEA     DISP_JSR,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            JSR     EA_NOSRC
+OP_JSR      MOVE.B #'J',D3
+            BSR     PUSH_STACK
+            MOVE.B #'S',D3
+            BSR     PUSH_STACK
+            MOVE.B #'R',D3
+            BSR     PUSH_STACK
 
             RTS
 
@@ -1744,32 +1735,7 @@ OP0101_RETURN2
             RTS
 
 
-            
-*---------------------------------------------------------------------------*
-* OP_ADDQ: display ADDQ
-*---------------------------------------------------------------------------*              
-OP_ADDQ_B    * size is byte   
-            MOVE.B  #0,D4 
-            LEA     DISP_ADDQ_B,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-            
-OP_ADDQ_W    * size is word
-            MOVE.B  #1,D4
-            LEA     DISP_ADDQ_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-            
-OP_ADDQ_L    * size is long
-            MOVE.B  #2,D4
-            LEA     DISP_ADDQ_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-
-*---------------------------------------------------------------------------*
+            *---------------------------------------------------------------------------*
 * OP0110: decode BRA/BEQ/BNE/BLT/BHI
 *---------------------------------------------------------------------------*              
 OP0110  	CLR.L   D0                  
@@ -1954,17 +1920,6 @@ OP1000_DIVS_RETURN
             RTS
             
 
-
-*---------------------------------------------------------------------------*
-* OP_DIVS: display DIVS and proceed to EA
-*---------------------------------------------------------------------------*  
-OP_DIVS     LEA     DISP_DIVS,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            JMP     EA_ARITH
-
-            RTS
-            
 *---------------------------------------------------------------------------*
 * OP1001: decode SUB/SUBA
 *---------------------------------------------------------------------------*      
@@ -2264,49 +2219,7 @@ OP1001_PRINT_L
 OP1001_ADD_RETURN
             RTS
 
-  
-*---------------------------------------------------------------------------*
-* OP_SUB: display SUB and proceed to EA
-*---------------------------------------------------------------------------*            
-OP_SUB_B    LEA     DISP_SUB_B,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #0,D4
-            JMP     EA_GEN
-
-            RTS
-
-OP_SUB_W    LEA     DISP_SUB_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #1,D4
-            JMP     EA_GEN
-
-            RTS
-
-OP_SUB_L    LEA     DISP_SUB_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #2,D4
-            JMP     EA_GEN
-
-            RTS
-
-*---------------------------------------------------------------------------*
-* OP_SUBA: display SUBA
-*---------------------------------------------------------------------------*  
-OP_SUBA_W   LEA     DISP_SUBA_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #1,D4
-            RTS
-
-OP_SUBA_L   LEA     DISP_SUBA_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #2,D4
-            RTS         
-*---------------------------------------------------------------------------*
+  *---------------------------------------------------------------------------*
 * OP1010 : unassigned
 *---------------------------------------------------------------------------*           
 OP1010      JMP     OP_DATA
@@ -2554,74 +2467,7 @@ OP1011_RETURN
             
             RTS
             
-            
-            
-            
-
-*---------------------------------------------------------------------------*
-* OP_CMPA: display CMPA 
-*---------------------------------------------------------------------------
-OP_CMPA_W   LEA     DISP_CMPA_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #1,D4
-            RTS
-
-OP_CMPA_L   LEA     DISP_CMPA_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #2,D4
-            RTS
-
-*---------------------------------------------------------------------------*
-* OP_CMP: display CMP and proceed to EA
-*---------------------------------------------------------------------------*  
-OP_CMP_B    LEA     DISP_CMP_B,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #0,D4
-            JMP     EA_GEN
-
-            RTS
-            
-OP_CMP_W    LEA     DISP_CMP_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #1,D4
-            JMP     EA_GEN
-
-            RTS
-            
-OP_CMP_L    LEA     DISP_CMP_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #2,D4
-            JMP     EA_GEN
-
-            RTS
-            
-*---------------------------------------------------------------------------*
-* OP_EOR: display EOR
-*---------------------------------------------------------------------------*  
-OP_EOR_B    LEA     DISP_EOR_B,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #0,D4
-            RTS
-            
-OP_EOR_W    LEA     DISP_EOR_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #1,D4
-            RTS
-            
-OP_EOR_L    LEA     DISP_EOR_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #2,D4
-            RTS    
-
-*---------------------------------------------------------------------------*
+            *---------------------------------------------------------------------------*
 * OP1100: Decode and display MULS/AND and proceed to EA
 *---------------------------------------------------------------------------* 
 OP1100      CLR.L   D0                 
@@ -3235,60 +3081,7 @@ OP1101_PRINT_L
 OP1101_ADD_RETURN
             RTS
             
-            *ADDW
-            CMPI.B  #$6,D1
-            BEQ     OP_ADDA_W
-            CMPI.B  #$E,D1
-            BEQ     OP_ADDA_L 
-
-            JMP     OP_DATA  
-          
-*---------------------------------------------------------------------------*
-* OP_ADD: display ADD and proceed to EA
-*---------------------------------------------------------------------------*  
-OP_ADD_B    LEA     DISP_ADD_B,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #0,D4
-            JMP     EA_GEN
-
-            RTS
-
-OP_ADD_W    LEA     DISP_ADD_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #1,D4
-            JMP     EA_GEN
-
-            RTS
-
-OP_ADD_L    LEA     DISP_ADD_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #2,D4
-            JMP     EA_GEN
-
-            RTS
-
-*---------------------------------------------------------------------------*
-* OP_ADDA: display ADDA and proceed to EA
-*---------------------------------------------------------------------------*  
-OP_ADDA_W   LEA     DISP_ADDA_W,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #1,D4
-            JMP     EA_GEN
-
-            RTS
-
-OP_ADDA_L   LEA     DISP_ADDA_L,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            MOVE.B  #2,D4
-            JMP     EA_GEN
-
-            RTS
-            
+         
 *---------------------------------------------------------------------------*
 * OP1110: LSR/LSL/ASR/ASL/ROL/ROR
 *---------------------------------------------------------------------------* 
@@ -3983,258 +3776,8 @@ OP_ROX_RETURN
 *---------------------------------------------------------------------------*           
 OP1111      JMP     OP_DATA
 
-*---------------------------------------------------------------------------*
-* EA_NOSRC: decode and display effective addresses for NEG/JSR
-*---------------------------------------------------------------------------*
-EA_NOSRC    
-            JSR     SRC_MODE
-            LEA     ENDLINE_M,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-            
-*---------------------------------------------------------------------------*
-* EA_ARITH: decode and display effective addresses for DIVS/MULS
-*---------------------------------------------------------------------------*
-EA_ARITH
-            JSR     SRC_MODE
-            LEA     DISP_D,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            JSR     DEST_REGISTER
-            LEA     ENDLINE_M,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-            
-*---------------------------------------------------------------------------*
-* EA_MOVEA: decode and display effective addresses for MOVEA/LEA
-*---------------------------------------------------------------------------*
-EA_MOVEA
-            JSR     SRC_MODE
-            LEA     DISP_AOP,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            JSR     DEST_REGISTER
-            LEA     DISP_CP,A1
-            MOVE.B  #13,D0
-            TRAP    #15
-            RTS
-            
-*---------------------------------------------------------------------------*
-* EA_GEN: decode and display effective addresses for MOVE
-*---------------------------------------------------------------------------*
-EA_GEN          
-            * retrieve/display source mode/register
-            JSR     SRC_MODE
-            
-            * retrieve/display destination mode/register
-            JSR     DEST_MODE
-            
-            LEA     ENDLINE_M,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            
-            RTS
 
-*---------------------------------------------------------------------------*
-* DEST_MODE: decode and display destination mode (bit 8 - 6)
-*---------------------------------------------------------------------------*           
-DEST_MODE   
-            * clear registers to store temp data
-            CLR.L   D0                      
-            CLR.L   D1                      
-            MOVEA.L #0, A0                  
-            MOVEA.L #0, A1                  
-            MOVE.L  D5,D1
-            LSR.L   #6,D1
-            ANDI.L  #$7,D1
-            CMPI.B  #0,D1   * Dn
-            BEQ     D_MODE000
-            CMPI.B  #2,D1   * (An)
-            BEQ     D_MODE010
-            CMPI.B  #3,D1   * (An)+
-            BEQ     D_MODE011
-            CMPI.B  #4,D1   * -(An)
-            BEQ     D_MODE100
-            CMPI.B  #7,D1  * abs
-            BEQ     D_MODE111 
-            RTS
-
-*---------------------------------------------------------------------------*
-* SRC_MODE: decode and display source mode (bit 5 - 3)
-*---------------------------------------------------------------------------*  
-SRC_MODE    
-            * clear registers to store temp data
-            CLR.L   D0                      
-            CLR.L   D1                      
-            MOVEA.L #0, A0                  
-            MOVEA.L #0, A1                  
-            MOVE.L  D5,D1
-            LSR.L   #2,D1
-            ANDI.L  #$E,D1
-            
-            CMPI.B  #0,D1   * Dn
-            BEQ     MODE000
-            CMPI.B  #2,D1   * An 
-            BEQ     MODE001
-            CMPI.B  #4,D1   * (An)
-            BEQ     MODE010
-            CMPI.B  #6,D1   * (An)+
-            BEQ     MODE011
-            CMPI.B  #8,D1   * -(An)
-            BEQ     MODE100
-            CMPI.B  #15,D1  * abs/immediate
-            BEQ     MODE111 
-      
-*---------------------------------------------------------------------------*
-* MODE000: decode and display source mode Dn
-*---------------------------------------------------------------------------*           
-MODE000     *Dn
-            LEA     DISP_D,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            JSR     SRC_REGISTER
-            RTS
-
-*---------------------------------------------------------------------------*
-* D_MODE000: decode and display dest mode Dn
-*---------------------------------------------------------------------------*
-D_MODE000     *Dn
-            LEA     DISP_D,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            JSR     DEST_REGISTER
-            RTS
-
-*---------------------------------------------------------------------------*
-* MODE001: decode and display source mode An
-*---------------------------------------------------------------------------* 
-MODE001 *An
-            LEA     DISP_A,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            JSR     SRC_REGISTER
-        
-            RTS
-
-*---------------------------------------------------------------------------*
-* MODE010: decode and display source mode (An)
-*---------------------------------------------------------------------------*    
-MODE010 *(An)
-            LEA     DISP_AOP,A1  *display (A
-            MOVE.B  #14,D0
-            TRAP    #15
-
-            JSR     SRC_REGISTER * display register
-
-            LEA     DISP_CP,A1   *display )
-            MOVE.B  #14,D0
-            TRAP    #15
-            
-            RTS
-
-*---------------------------------------------------------------------------*
-* D_MODE010: decode and display dest mode (An)
-*---------------------------------------------------------------------------*
-D_MODE010 *(An)
-            LEA     DISP_AOP,A1  *display (A
-            MOVE.B  #14,D0
-            TRAP    #15
-   
-            JSR     DEST_REGISTER * display register
-
-            LEA     DISP_CP,A1   *display )
-            MOVE.B  #14,D0
-            TRAP    #15
-            
-            RTS
-
-*---------------------------------------------------------------------------*
-* MODE011: decode and display source mode (An)+
-*---------------------------------------------------------------------------*
-MODE011 *(An)+
-            LEA     DISP_AOP,A1      *display (A
-            MOVE.B  #14,D0
-            TRAP    #15
-            
-            JSR     SRC_REGISTER    * display register
-
-            LEA     DISP_POST,A1    *display )+
-            MOVE.B  #14,D0
-            TRAP    #15
-            
-            RTS
-            
-*---------------------------------------------------------------------------*
-* MODE100: decode and display source mode -(An)
-*---------------------------------------------------------------------------*
-MODE100 *-(An)
-            LEA     DISP_PRE,A1    *display -(A
-            MOVE.B  #14,D0
-            TRAP    #15
-
-            JSR     SRC_REGISTER    *display register
-
-            LEA     DISP_CP,A1   *display )
-            MOVE.B  #14,D0
-            TRAP    #15
-            
-            RTS
-
-*---------------------------------------------------------------------------*
-* D_MODE011: decode and display dest mode (An)+
-*---------------------------------------------------------------------------*
-D_MODE011 *(An)+
-            LEA     DISP_AOP,A1      *display (A
-            MOVE.B  #14,D0
-            TRAP    #15
-
-            JSR     DEST_REGISTER    * display register
-
-            LEA     DISP_POST,A1    *display )+
-            MOVE.B  #14,D0
-            TRAP    #15
-            
-            RTS
-            
-*---------------------------------------------------------------------------*
-* D_MODE100: decode and display dest mode -(An)
-*---------------------------------------------------------------------------*            
-D_MODE100 *-(An)
-            LEA     DISP_PRE,A1    *display -(A
-            MOVE.B  #14,D0
-            TRAP    #15
-            
-            JSR     DEST_REGISTER    *display register
-
-            LEA     DISP_CP,A1   *display )
-            MOVE.B  #14,D0
-            TRAP    #15
-            
-            RTS
-
-*---------------------------------------------------------------------------*
-* MODE111: decode and display source mode absolute/immediate
-*---------------------------------------------------------------------------*
-MODE111     * abs/immediate
-            * clear registers to store temp data
-            CLR.L   D0                      
-            CLR.L   D1                      
-            MOVEA.L #0, A0                  
-            MOVEA.L #0, A1                  
-            MOVE.L  D5,D1
-            
-            * retrieve source register for MODE 111
-            LSL.L   #1,D1   * shift the bits to left by 1
-            ANDI.L  #$E,D1  * mask the first 4 bits 
-            CMPI.B  #0, D1  * if it's 0000, absolute word address
-            BEQ     WORDMODE
-            CMPI.B  #2, D1  * if it's 0010, absolute long address
-            BEQ     LONGMODE
-            CMPI.B  #8, D1  * if it's 1000, immediate data
-            BEQ     IMMEDIATE
-     
+           
 *---------------------------------------------------------------------------*
 * D_MODE111: decode and display dest mode absolute/immediate
 *---------------------------------------------------------------------------*           
@@ -4298,171 +3841,6 @@ LONGMODE    LEA     DISP_HEX,A1
             
             RTS
 
-
-*---------------------------------------------------------------------------*
-* IMMEDIATE: immediate address
-*---------------------------------------------------------------------------*
-IMMEDIATE   LEA     DISP_LB,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            LEA     DISP_HEX,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            
-            * check for size
-            CMPI.B  #0,D4
-            BEQ     IMMD_B
-            CMPI.B  #1,D4
-            BEQ     IMMD_W
-            CMPI.B  #2,D4
-            BEQ     IMMD_L
-
-IMMD_B
-            CLR.L   D5
-            MOVE.W  (A5)+,D5
-            
-            LEA     TMPOUTPUT,A1
-            MOVE.L  D5,D1
-            MOVE.L  #2,D2
-            JSR     HEX2ASCII
-            LEA     TMPOUTPUT,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-            
-IMMD_W
-            CLR.L   D5
-            MOVE.W  (A5)+,D5
-            
-            LEA     TMPOUTPUT,A1
-            MOVE.L  D5,D1
-            MOVE.L  #4,D2
-            JSR     HEX2ASCII
-            LEA     TMPOUTPUT,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-            
-
-IMMD_L
-            CLR.L   D5
-            MOVE.W  (A5)+,D5
-            
-            LEA     TMPOUTPUT,A1
-            MOVE.L  D5,D1
-            MOVE.L  #8,D2
-            JSR     HEX2ASCII
-            LEA     TMPOUTPUT,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-
-
-*---------------------------------------------------------------------------*
-* DEST_REGISTER: decode and display destination register (bit 11 - 9)
-*---------------------------------------------------------------------------*
-DEST_REGISTER
-            * clear registers to store temp data
-            CLR.L   D0                      
-            CLR.L   D1                      
-            MOVEA.L #0, A0                  
-            MOVEA.L #0, A1 
-            
-            MOVE.L  D5,D1
-            LSR.L   #6,D1
-            LSR.L   #3,D1
-            ANDI.L  #7,D1
-            
-            CMPI.B  #0,D1
-            BEQ     REG_0
-            CMPI.B  #1,D1
-            BEQ     REG_1
-            CMPI.B  #2,D1
-            BEQ     REG_2
-            CMPI.B  #3,D1
-            BEQ     REG_3
-            CMPI.B  #4,D1
-            BEQ     REG_4
-            CMPI.B  #5,D1
-            BEQ     REG_5
-            CMPI.B  #6,D1
-            BEQ     REG_6
-            CMPI.B  #7,D1
-            BEQ     REG_7
-
-*---------------------------------------------------------------------------*
-* SRC_REGISTER: decode and display source register (bit 2 - 0)
-*---------------------------------------------------------------------------*           
-SRC_REGISTER 
-            * clear registers to store temp data
-            CLR.L   D0                      
-            CLR.L   D1                      
-            MOVEA.L #0, A0                  
-            MOVEA.L #0, A1                  
-            
-            MOVE.L  D5,D1   * temp store the processing data
-            ANDI.L  #7,D1   * mask the first 4 bits with 0111
-            
-            CMPI.B  #0,D1
-            BEQ     REG_0
-            CMPI.B  #1,D1
-            BEQ     REG_1
-            CMPI.B  #2,D1
-            BEQ     REG_2
-            CMPI.B  #3,D1
-            BEQ     REG_3
-            CMPI.B  #4,D1
-            BEQ     REG_4
-            CMPI.B  #5,D1
-            BEQ     REG_5
-            CMPI.B  #6,D1
-            BEQ     REG_6
-            CMPI.B  #7,D1
-            BEQ     REG_7
-
-*---------------------------------------------------------------------------*
-* REG_0 ~ REG_7: display register 0 to 7
-*---------------------------------------------------------------------------*
-REG_0       LEA     DISP_0,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-            
-REG_1       LEA     DISP_1,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-            
-
-REG_2       LEA     DISP_2,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-          
-REG_3       LEA     DISP_3,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-            
-REG_4       LEA     DISP_4,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-            
-REG_5       LEA     DISP_5,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-            
-REG_6       LEA     DISP_6,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
-            
-REG_7       LEA     DISP_7,A1
-            MOVE.B  #14,D0
-            TRAP    #15
-            RTS
             
 *---------------------------------------------------------------------------*
 * REPEAT : Ask user whether they wish to run the program again
@@ -5433,105 +4811,9 @@ E_ADDR_HX   DS.L    1                       * allocate storage space for the end
 ENDLINE_M   DC.B    CR,LF,0
 TMPINPUT    DS.B    80                      * temp store user input
 TMPOUTPUT   DS.B    80                      * temp store prog output
-DISP_ORI_B  DC.B    '   ORI.B',0
-DISP_ORI_W  DC.B    '   ORI.W',0
-DISP_ORI_L  DC.B    '   ORI.L',0
-DISP_EORI_B  DC.B    '   EORI.B',0
-DISP_EORI_W  DC.B    '   EORI.W',0
-DISP_EORI_L  DC.B    '   EORI.L',0
-DISP_BTST   DC.B    '   BTST',0
-DISP_CMPI_B  DC.B    '   CMPI.B',0
-DISP_CMPI_W  DC.B    '   CMPI.W',0
-DISP_CMPI_L  DC.B    '   CMPI.L',0
 DISP_DATA   DC.B    '   DATA',0
-DISP_MOVE_B DC.B    '   MOVE.B',0
-DISP_MOVE_W DC.B    '   MOVE.W',0
-DISP_MOVE_L DC.B    '   MOVE.L',0
-DISP_RTS    DC.B    '   RTS',0
-DISP_JSR    DC.B    '   JSR',0
-DISP_NEG_B    DC.B    '   NEG.B',0
-DISP_NEG_W    DC.B    '   NEG.W',0
-DISP_NEG_L    DC.B    '   NEG.L',0
-DISP_NOT_B  DC.B    '   NOT.B',0
-DISP_NOT_W  DC.B    '   NOT.W',0
-DISP_NOT_L  DC.B    '   NOT.L',0
-DISP_LEA    DC.B    '   LEA',0
-DISP_MOVEM_W    DC.B    '   MOVEM.W',0
-DISP_MOVEM_L    DC.B    '   MOVEM.L',0
-DISP_ADDQ_B DC.B    '   ADDQ.B',0
-DISP_ADDQ_W DC.B    '   ADDQ.W',0
-DISP_ADDQ_L DC.B    '   ADDQ.L',0
-DISP_DIVS   DC.B    '   DIVS',0
-DISP_SUB_B  DC.B    '   SUB.B',0
-DISP_SUB_W  DC.B    '   SUB.W',0
-DISP_SUB_L  DC.B    '   SUB.L',0
-DISP_SUBI_B  DC.B    '   SUBI.B',0
-DISP_SUBI_W  DC.B    '   SUBI.W',0
-DISP_SUBI_L  DC.B    '   SUBI.L',0
-DISP_SUBA_W  DC.B    '   SUBA.W',0
-DISP_SUBA_L  DC.B    '   SUBA.L',0
-DISP_EOR_B  DC.B    '   EOR.B',0
-DISP_EOR_W  DC.B    '   EOR.W',0
-DISP_EOR_L  DC.B    '   EOR.L',0
-DISP_CMP_B  DC.B    '   CMP.B',0
-DISP_CMP_W  DC.B    '   CMP.W',0
-DISP_CMP_L  DC.B    '   CMP.L',0
-DISP_CMPA_W  DC.B    '   CMPA.W',0
-DISP_CMPA_L  DC.B    '   CMPA.L',0
-DISP_MULS_W DC.B    '   MULS.W',0
-DISP_AND_B  DC.B    '   AND.B',0
-DISP_AND_W  DC.B    '   AND.W',0
-DISP_AND_L  DC.B    '   AND.L',0
-DISP_ADD_B  DC.B    '   ADD.B',0
-DISP_ADD_W  DC.B    '   ADD.W',0
-DISP_ADD_L  DC.B    '   ADD.L',0
-DISP_ADDA_W DC.B    '   ADDA.W',0
-DISP_ADDA_L DC.B    '   ADDA.L',0
-DISP_LSR_B  DC.B    '   LSR.B',0
-DISP_LSL_B  DC.B    '   LSL.B',0
-DISP_LSR_W  DC.B    '   LSR.W',0
-DISP_LSL_W  DC.B    '   LSL.W',0
-DISP_LSR_L  DC.B    '   LSR.L',0
-DISP_LSL_L  DC.B    '   LSL.L',0
-DISP_ASR_B  DC.B    '   ASR.B',0
-DISP_ASL_B  DC.B    '   ASL.B',0
-DISP_ASR_W  DC.B    '   ASR.W',0
-DISP_ASL_W  DC.B    '   ASL.W',0
-DISP_ASR_L  DC.B    '   ASR.L',0
-DISP_ASL_L  DC.B    '   ASL.L',0
-DISP_ROR_B  DC.B    '   ROR.B',0
-DISP_ROL_B  DC.B    '   ROL.B',0
-DISP_ROR_W  DC.B    '   ROR.W',0
-DISP_ROL_W  DC.B    '   ROL.W',0
-DISP_ROR_L  DC.B    '   ROR.L',0
-DISP_ROL_L  DC.B    '   ROL.L',0
-DISP_BRA    DC.B    '   BRA',0
-DISP_BLT    DC.B    '   BLT',0
-DISP_BEQ    DC.B    '   BEQ',0
-DISP_BNE    DC.B    '   BNE',0
-DISP_BHI    DC.B    '   BHI',0
-DISP_MOVEA_W    DC.B    '   MOVEA.W',0
-DISP_MOVEA_L    DC.B    '   MOVEA.L',0
 
 DISP_HEX     DC.B    '   $',0
-DISP_D  DC.B    '   D',0
-DISP_A  DC.B    '   A',0
-DISP_OP  DC.B    '   (',0
-DISP_CP  DC.B   ')',0
-DISP_AOP  DC.B    '   (A',0
-
-DISP_PRE    DC.B    '   -(A',0
-DISP_POST   DC.B    ')+',0
-DISP_LB DC.B    '   #',0
-DISP_0  DC.B    '0',0
-DISP_1  DC.B    '1',0
-DISP_2  DC.B    '2',0
-DISP_3  DC.B    '3',0
-DISP_4  DC.B    '4',0
-DISP_5  DC.B    '5',0
-DISP_6  DC.B    '6',0
-DISP_7  DC.B    '7',0
-
 *STACK INTERFACE VARIABLES*
 COUNTER         DS.W    1
 QUEUE_COUNTER   DS.W    1
